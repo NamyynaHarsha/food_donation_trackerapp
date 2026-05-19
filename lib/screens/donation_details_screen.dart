@@ -19,230 +19,502 @@ class DonationDetailsScreen
   });
 
   @override
-  State<DonationDetailsScreen> createState() =>
+  State<DonationDetailsScreen>
+  createState() =>
       _DonationDetailsScreenState();
 }
 
 class _DonationDetailsScreenState
     extends State<DonationDetailsScreen> {
 
-  bool isFavorite = false;
+  bool isLoading = false;
+
+  bool hasRequested = false;
+
+  Map<String, dynamic>? donor;
+
+  @override
+  void initState() {
+    super.initState();
+
+    loadDonor();
+
+    checkRequestStatus();
+  }
+
+  // =========================
+  // LOAD DONOR
+  // =========================
+
+  Future<void> loadDonor() async {
+
+    final donorData =
+    await DatabaseHelper.instance
+        .getUserById(
+      widget.donation['donorId'],
+    );
+
+    if (mounted) {
+
+      setState(() {
+
+        donor = donorData;
+      });
+    }
+  }
+
+  // =========================
+  // CHECK REQUEST
+  // =========================
+
+  Future<void> checkRequestStatus()
+  async {
+
+    final alreadyRequested =
+    await DatabaseHelper.instance
+        .hasUserRequested(
+
+      widget.donation['id'],
+
+      widget.currentUser['id'],
+    );
+
+    if (mounted) {
+
+      setState(() {
+
+        hasRequested =
+            alreadyRequested;
+      });
+    }
+  }
+
+  // =========================
+  // REQUEST FOOD
+  // =========================
+
+  Future<void> requestFood()
+  async {
+
+    try {
+
+      setState(() {
+        isLoading = true;
+      });
+
+      final alreadyRequested =
+      await DatabaseHelper.instance
+          .hasUserRequested(
+
+        widget.donation['id'],
+
+        widget.currentUser['id'],
+      );
+
+      if (alreadyRequested) {
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+
+          const SnackBar(
+
+            content: Text(
+              'You already requested this donation',
+            ),
+          ),
+        );
+
+        setState(() {
+          isLoading = false;
+        });
+
+        return;
+      }
+
+      await DatabaseHelper.instance
+          .insertRequest({
+
+        'donationId':
+        widget.donation['id'],
+
+        'foodTitle':
+        widget.donation['title'],
+
+        'donorId':
+        widget.donation['donorId'],
+
+        'donorName':
+        donor?['name'] ?? '',
+
+        'donorPhone':
+        donor?['phone'] ?? '',
+
+        'donorAddress':
+        donor?['address'] ?? '',
+
+        'requesterId':
+        widget.currentUser['id'],
+
+        'requesterName':
+        widget.currentUser['name'],
+
+        'requesterPhone':
+        widget.currentUser['phone'],
+
+        'requesterAddress':
+        widget.currentUser['address'],
+
+        'status': 'Pending',
+
+        'requestDate':
+        DateTime.now().toString(),
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+
+        hasRequested = true;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+
+          content: Text(
+            'Request sent successfully',
+          ),
+        ),
+      );
+
+      Navigator.push(
+
+        context,
+
+        MaterialPageRoute(
+
+          builder: (_) =>
+              RequestConfirmationScreen(
+
+                donorName:
+                donor?['name'] ??
+                    'Donor',
+              ),
+        ),
+      );
+
+    } catch (e) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+        ),
+      );
+
+    } finally {
+
+      if (mounted) {
+
+        setState(() {
+
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
 
     final primary =
-        Theme.of(context).colorScheme.primary;
-
-    final donorName =
-        widget.donation['donorName'] ??
-            'Unknown Donor';
-
-    final expiryDate =
-        widget.donation['expiryDate'] ?? '';
-
-    // =========================
-    // CHECK OWN DONATION
-    // =========================
+    const Color(0xFF2E7D32);
 
     final isOwnDonation =
 
-        widget.currentUser['email'] ==
+        widget.currentUser['id'] ==
 
-            widget.donation['donorEmail'];
+            widget.donation['donorId'];
 
     return Scaffold(
 
-      appBar: AppBar(
-        backgroundColor: primary,
+      backgroundColor:
+      Colors.white,
 
-        centerTitle: true,
+      appBar: AppBar(
+
+        backgroundColor: primary,
 
         elevation: 0,
 
+        centerTitle: true,
+
         title: const Text(
+
           'Donation Details',
 
           style: TextStyle(
+
             color: Colors.white,
-            fontWeight: FontWeight.w600,
+
+            fontWeight:
+            FontWeight.bold,
           ),
         ),
 
         iconTheme:
-            const IconThemeData(
+        const IconThemeData(
+
           color: Colors.white,
         ),
-
-        actions: [
-
-          IconButton(
-            icon: Icon(
-              isFavorite
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-            ),
-
-            onPressed: () {
-
-              setState(() {
-                isFavorite = !isFavorite;
-              });
-            },
-          ),
-        ],
       ),
 
-      backgroundColor: Colors.white,
-
       body: SingleChildScrollView(
+
         child: Column(
+
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+          CrossAxisAlignment.start,
 
           children: [
 
+            // =========================
             // IMAGE
+            // =========================
 
-            widget.donation['imageUrl'] != null
+            widget.donation['imageUrl'] !=
+                null &&
+                widget
+                    .donation['imageUrl']
+                    .toString()
+                    .isNotEmpty
 
                 ? Image.file(
-                    File(
-                      widget.donation[
-                          'imageUrl'],
-                    ),
 
-                    width: double.infinity,
-                    height: 260,
+              File(
+                widget.donation[
+                'imageUrl'],
+              ),
 
-                    fit: BoxFit.cover,
-                  )
+              width:
+              double.infinity,
+
+              height: 260,
+
+              fit: BoxFit.cover,
+            )
 
                 : Container(
-                    height: 260,
-                    width: double.infinity,
 
-                    color: Colors.grey[300],
+              width:
+              double.infinity,
 
-                    child: const Center(
-                      child: Icon(
-                        Icons.image,
-                        size: 80,
-                      ),
-                    ),
-                  ),
+              height: 260,
+
+              color:
+              Colors.grey[300],
+
+              child:
+              const Center(
+
+                child: Icon(
+                  Icons.image,
+                  size: 80,
+                ),
+              ),
+            ),
 
             Padding(
+
               padding:
-                  const EdgeInsets.all(20),
+              const EdgeInsets.all(
+                20,
+              ),
 
               child: Column(
+
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
 
                 children: [
 
+                  // =========================
                   // TITLE
+                  // =========================
 
                   Text(
-                    widget.donation['title'],
 
-                    style: const TextStyle(
-                      fontSize: 30,
+                    widget.donation['title']
+                        ??
+                        '',
+
+                    style:
+                    const TextStyle(
+
+                      fontSize: 32,
+
                       fontWeight:
-                          FontWeight.bold,
+                      FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(
+                    height: 24,
+                  ),
 
-                  // QUICK INFO
+                  // =========================
+                  // INFO ROW
+                  // =========================
 
                   Row(
+
                     children: [
 
                       Expanded(
+
                         child: _infoCard(
 
                           icon:
-                              Icons.shopping_bag,
+                          Icons.shopping_bag,
 
-                          label: 'Quantity',
+                          label:
+                          'Quantity',
 
                           value:
-                              widget.donation[
-                                  'quantity'],
+                          widget.donation[
+                          'quantity'] ??
+                              '',
                         ),
                       ),
 
-                      const SizedBox(width: 14),
+                      const SizedBox(
+                        width: 14,
+                      ),
 
                       Expanded(
+
                         child: _infoCard(
 
                           icon:
-                              Icons.location_on,
+                          Icons.location_on,
 
-                          label: 'Location',
+                          label:
+                          'Location',
 
                           value:
-                              widget.donation[
-                                  'location'],
+                          widget.donation[
+                          'location'] ??
+                              '',
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(
+                    height: 26,
+                  ),
 
+                  // =========================
                   // DONOR CARD
+                  // =========================
 
                   Container(
+
                     padding:
-                        const EdgeInsets.all(
+                    const EdgeInsets.all(
                       18,
                     ),
 
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                    decoration:
+                    BoxDecoration(
+
+                      color:
+                      Colors.grey[100],
 
                       borderRadius:
-                          BorderRadius.circular(
+                      BorderRadius.circular(
                         18,
                       ),
                     ),
 
                     child: Column(
+
                       children: [
 
                         Row(
+
                           children: [
 
                             CircleAvatar(
-                              radius: 28,
+
+                              radius: 30,
 
                               backgroundColor:
-                                  primary
-                                      .withValues(
-                                alpha: 0.15,
+                              primary
+                                  .withOpacity(
+                                0.15,
                               ),
 
-                              child: Text(
-                                donorName[0]
-                                    .toUpperCase(),
+                              backgroundImage:
+                              donor?[
+                              'profileImage'] !=
+                                  null &&
+                                  donor![
+                                  'profileImage']
+                                      .toString()
+                                      .isNotEmpty
+
+                                  ? FileImage(
+
+                                File(
+                                  donor![
+                                  'profileImage'],
+                                ),
+                              )
+
+                                  : null,
+
+                              child:
+                              donor?[
+                              'profileImage'] ==
+                                  null ||
+                                  donor![
+                                  'profileImage']
+                                      .toString()
+                                      .isEmpty
+
+                                  ? Text(
+
+                                donor?['name']
+                                    ?.substring(
+                                  0,
+                                  1,
+                                )
+                                    .toUpperCase() ??
+                                    '?',
 
                                 style:
-                                    TextStyle(
-                                  fontSize: 24,
+                                TextStyle(
+
+                                  fontSize:
+                                  24,
 
                                   fontWeight:
-                                      FontWeight
-                                          .bold,
+                                  FontWeight.bold,
 
                                   color:
-                                      primary,
+                                  primary,
                                 ),
-                              ),
+                              )
+
+                                  : null,
                             ),
 
                             const SizedBox(
@@ -250,24 +522,27 @@ class _DonationDetailsScreenState
                             ),
 
                             Expanded(
+
                               child: Column(
+
                                 crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                                CrossAxisAlignment
+                                    .start,
 
                                 children: [
 
                                   Text(
-                                    donorName,
+
+                                    donor?['name'] ??
+                                        'Donor',
 
                                     style:
-                                        const TextStyle(
-                                      fontSize:
-                                          18,
+                                    const TextStyle(
+
+                                      fontSize: 20,
 
                                       fontWeight:
-                                          FontWeight
-                                              .bold,
+                                      FontWeight.bold,
                                     ),
                                   ),
 
@@ -276,16 +551,17 @@ class _DonationDetailsScreenState
                                   ),
 
                                   Text(
+
                                     "Food Donor",
 
                                     style:
-                                        TextStyle(
-                                      color: Colors
-                                              .grey[
-                                          600],
+                                    TextStyle(
 
-                                      fontSize:
-                                          13,
+                                      color:
+                                      Colors.grey[
+                                      600],
+
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
@@ -293,41 +569,45 @@ class _DonationDetailsScreenState
                             ),
 
                             Container(
+
                               padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal: 12,
+                              const EdgeInsets.symmetric(
+
+                                horizontal:
+                                12,
+
                                 vertical: 6,
                               ),
 
                               decoration:
-                                  BoxDecoration(
-                                color: primary
-                                    .withValues(
-                                  alpha: 0.1,
+                              BoxDecoration(
+
+                                color:
+                                primary.withOpacity(
+                                  0.12,
                                 ),
 
                                 borderRadius:
-                                    BorderRadius
-                                        .circular(
+                                BorderRadius.circular(
                                   20,
                                 ),
                               ),
 
                               child: Text(
+
                                 "Verified",
 
                                 style:
-                                    TextStyle(
+                                TextStyle(
+
                                   color:
-                                      primary,
+                                  primary,
 
                                   fontWeight:
-                                      FontWeight
-                                          .w600,
+                                  FontWeight.w600,
 
                                   fontSize:
-                                      12,
+                                  12,
                                 ),
                               ),
                             ),
@@ -335,20 +615,21 @@ class _DonationDetailsScreenState
                         ),
 
                         const SizedBox(
-                          height: 16,
+                          height: 18,
                         ),
 
-                        // DONOR CONTACT INFO
-
                         Row(
+
                           children: [
 
                             Icon(
+
                               Icons.phone,
 
-                              size: 18,
+                              color:
+                              primary,
 
-                              color: primary,
+                              size: 18,
                             ),
 
                             const SizedBox(
@@ -356,16 +637,9 @@ class _DonationDetailsScreenState
                             ),
 
                             Text(
-                              widget.donation[
-                                      'donorPhone'] ??
-                                  '',
 
-                              style:
-                                  TextStyle(
-                                color: Colors
-                                        .grey[
-                                    800],
-                              ),
+                              donor?['phone'] ??
+                                  '',
                             ),
                           ],
                         ),
@@ -375,18 +649,21 @@ class _DonationDetailsScreenState
                         ),
 
                         Row(
+
                           crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
+                          CrossAxisAlignment
+                              .start,
 
                           children: [
 
                             Icon(
+
                               Icons.location_on,
 
-                              size: 18,
+                              color:
+                              primary,
 
-                              color: primary,
+                              size: 18,
                             ),
 
                             const SizedBox(
@@ -394,19 +671,11 @@ class _DonationDetailsScreenState
                             ),
 
                             Expanded(
+
                               child: Text(
-                                widget.donation[
-                                        'donorAddress'] ??
+
+                                donor?['address'] ??
                                     '',
-
-                                style:
-                                    TextStyle(
-                                  color: Colors
-                                          .grey[
-                                      800],
-
-                                  height: 1.4,
-                                ),
                               ),
                             ),
                           ],
@@ -415,169 +684,163 @@ class _DonationDetailsScreenState
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(
+                    height: 22,
+                  ),
 
-                  // EXPIRY DATE
+                  // =========================
+                  // EXPIRY
+                  // =========================
 
                   _bigInfoCard(
 
                     icon:
-                        Icons.calendar_today,
+                    Icons.calendar_today,
 
-                    title: "Expiry Date",
+                    title:
+                    'Expiry Date',
 
-                    value: expiryDate
+                    value:
+                    widget.donation[
+                    'expiryDate']
+                        .toString()
                         .split(' ')
                         .first,
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(
+                    height: 30,
+                  ),
 
-                  // DESCRIPTION TITLE
+                  // =========================
+                  // DESCRIPTION
+                  // =========================
 
                   const Text(
+
                     'Description',
 
                     style: TextStyle(
-                      fontSize: 18,
+
+                      fontSize: 20,
+
                       fontWeight:
-                          FontWeight.bold,
+                      FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // DESCRIPTION
+                  const SizedBox(
+                    height: 12,
+                  ),
 
                   Text(
+
                     widget.donation[
-                        'description'],
+                    'description'] ??
+                        '',
 
                     style: TextStyle(
-                      height: 1.7,
+
                       fontSize: 15,
-                      color: Colors.grey[800],
+
+                      height: 1.7,
+
+                      color:
+                      Colors.grey[800],
                     ),
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(
+                    height: 36,
+                  ),
 
+                  // =========================
                   // BUTTON
+                  // =========================
 
                   SizedBox(
-                    width: double.infinity,
-                    height: 56,
 
-                    child: ElevatedButton(
+                    width:
+                    double.infinity,
+
+                    height: 58,
+
+                    child:
+                    ElevatedButton(
 
                       onPressed:
 
-                          isOwnDonation
+                      isOwnDonation ||
+                          hasRequested ||
+                          isLoading
 
-                              ? null
+                          ? null
 
-                              : () async {
-
-                                  await DatabaseHelper
-                                      .instance
-                                      .insertRequest({
-
-                                    'donationId':
-                                        widget
-                                                .donation[
-                                            'id'],
-
-                                    'foodTitle':
-                                        widget
-                                                .donation[
-                                            'title'],
-
-                                    'donorId':
-                                        widget
-                                                .donation[
-                                            'donorId'],
-
-                                    'donorName':
-                                        donorName,
-
-                                    'donorPhone':
-                                        widget
-                                                .donation[
-                                            'donorPhone'],
-
-                                    'donorAddress':
-                                        widget
-                                                .donation[
-                                            'donorAddress'],
-
-                                    'requesterName':
-                                        widget
-                                                .currentUser[
-                                            'name'],
-
-                                    'requesterPhone':
-                                        widget
-                                                .currentUser[
-                                            'phone'],
-
-                                    'requesterAddress':
-                                        widget
-                                                .currentUser[
-                                            'address'],
-
-                                    'status':
-                                        'Pending',
-
-                                    'requestDate':
-                                        DateTime.now()
-                                            .toString(),
-                                  });
-
-                                  Navigator.push(
-                                    context,
-
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          RequestConfirmationScreen(
-                                        donorName:
-                                            donorName,
-                                      ),
-                                    ),
-                                  );
-                                },
+                          : requestFood,
 
                       style:
-                          ElevatedButton.styleFrom(
+                      ElevatedButton.styleFrom(
 
                         backgroundColor:
-                            isOwnDonation
-                                ? Colors.grey
-                                : primary,
 
-                        foregroundColor:
-                            Colors.white,
+                        isOwnDonation ||
+                            hasRequested
 
-                        elevation: 0,
+                            ? Colors.grey
+
+                            : primary,
 
                         shape:
-                            RoundedRectangleBorder(
+                        RoundedRectangleBorder(
+
                           borderRadius:
-                              BorderRadius.circular(
-                            16,
+                          BorderRadius.circular(
+                            18,
                           ),
                         ),
                       ),
 
-                      child: Text(
+                      child: isLoading
+
+                          ? const SizedBox(
+
+                        width: 24,
+
+                        height: 24,
+
+                        child:
+                        CircularProgressIndicator(
+
+                          color:
+                          Colors.white,
+
+                          strokeWidth:
+                          2,
+                        ),
+                      )
+
+                          : Text(
 
                         isOwnDonation
+
                             ? 'Your Donation'
+
+                            : hasRequested
+
+                            ? 'Already Requested'
+
                             : 'Request Food',
 
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style:
+                        const TextStyle(
+
+                          fontSize: 17,
+
                           fontWeight:
-                              FontWeight.w600,
+                          FontWeight.w600,
+
+                          color:
+                          Colors.white,
                         ),
                       ),
                     ),
@@ -591,64 +854,101 @@ class _DonationDetailsScreenState
     );
   }
 
+  // =========================
+  // SMALL INFO CARD
+  // =========================
+
   Widget _infoCard({
+
     required IconData icon,
+
     required String label,
+
     required String value,
+
   }) {
 
     return Container(
-      padding: const EdgeInsets.all(16),
 
-      decoration: BoxDecoration(
+      padding:
+      const EdgeInsets.all(
+        16,
+      ),
+
+      decoration:
+      BoxDecoration(
+
         border: Border.all(
-          color: Colors.grey[300]!,
+
+          color:
+          Colors.grey[300]!,
         ),
 
         borderRadius:
-            BorderRadius.circular(14),
+        BorderRadius.circular(
+          14,
+        ),
       ),
 
       child: Column(
+
         crossAxisAlignment:
-            CrossAxisAlignment.start,
+        CrossAxisAlignment
+            .start,
 
         children: [
 
           Row(
+
             children: [
 
               Icon(
+
                 icon,
 
-                color: const Color(
-                    0xFF2E7D32),
+                color:
+                const Color(
+                  0xFF2E7D32,
+                ),
 
                 size: 20,
               ),
 
-              const SizedBox(width: 8),
+              const SizedBox(
+                width: 8,
+              ),
 
               Text(
+
                 label,
 
-                style: const TextStyle(
+                style:
+                const TextStyle(
+
                   fontSize: 12,
-                  color: Colors.grey,
+
+                  color:
+                  Colors.grey,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(
+            height: 10,
+          ),
 
           Text(
+
             value,
 
-            style: const TextStyle(
+            style:
+            const TextStyle(
+
               fontSize: 17,
+
               fontWeight:
-                  FontWeight.w600,
+              FontWeight.w600,
             ),
           ),
         ],
@@ -656,64 +956,104 @@ class _DonationDetailsScreenState
     );
   }
 
+  // =========================
+  // BIG INFO CARD
+  // =========================
+
   Widget _bigInfoCard({
+
     required IconData icon,
+
     required String title,
+
     required String value,
+
   }) {
 
     return Container(
-      padding: const EdgeInsets.all(18),
 
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
+      padding:
+      const EdgeInsets.all(
+        18,
+      ),
+
+      decoration:
+      BoxDecoration(
+
+        color:
+        Colors.grey[100],
 
         borderRadius:
-            BorderRadius.circular(16),
+        BorderRadius.circular(
+          16,
+        ),
       ),
 
       child: Row(
+
         children: [
 
           CircleAvatar(
+
             backgroundColor:
-                Colors.green.withValues(
-              alpha: 0.12,
+            Colors.green
+                .withOpacity(
+              0.12,
             ),
 
             child: Icon(
+
               icon,
-              color: Colors.green,
+
+              color:
+              Colors.green,
             ),
           ),
 
-          const SizedBox(width: 16),
+          const SizedBox(
+            width: 16,
+          ),
 
           Expanded(
+
             child: Column(
+
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
 
               children: [
 
                 Text(
+
                   title,
 
-                  style: TextStyle(
-                    color: Colors.grey[600],
+                  style:
+                  TextStyle(
+
+                    color:
+                    Colors.grey[
+                    600],
+
                     fontSize: 13,
                   ),
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(
+                  height: 4,
+                ),
 
                 Text(
+
                   value,
 
-                  style: const TextStyle(
+                  style:
+                  const TextStyle(
+
                     fontSize: 17,
+
                     fontWeight:
-                        FontWeight.w600,
+                    FontWeight.w600,
                   ),
                 ),
               ],

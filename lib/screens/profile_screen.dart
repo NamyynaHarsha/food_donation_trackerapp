@@ -3,8 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../database/database_helper.dart';
+import 'edit_donation_screen.dart';
+import 'edit_profile_screen.dart';
 import 'incoming_requests_screen.dart';
+import 'login_screen.dart';
 import 'my_requests_screen.dart';
+import 'manage_donations_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
 
@@ -23,1059 +27,1549 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState
     extends State<ProfileScreen> {
 
-  List<Map<String, dynamic>> donations = [];
+  List<Map<String, dynamic>>
+  donations = [];
+
+  List<Map<String, dynamic>>
+  activeDonations = [];
+
+  int incomingCount = 0;
+
+  int myRequestCount = 0;
+
+  Map<String, dynamic>? updatedUser;
 
   @override
   void initState() {
     super.initState();
 
-    loadDonations();
+    updatedUser = widget.user;
+
+    loadProfileData();
   }
 
-  Future<void> loadDonations() async {
+  // =========================
+  // LOAD PROFILE DATA
+  // =========================
 
-    final data =
-        await DatabaseHelper.instance
-            .getUserDonations(
-      widget.user['email'],
+  Future<void> loadProfileData()
+  async {
+
+    final donationData =
+    await DatabaseHelper.instance
+        .getCompletedDonations(
+      updatedUser!['id'],
+    );
+
+    final activeDonationData =
+    await DatabaseHelper.instance
+        .getUserDonations(
+      updatedUser!['id'],
+    );
+
+    final filteredActive =
+    activeDonationData.where(
+          (donation) {
+
+        return donation['status'] !=
+            'Completed';
+      },
+    ).toList();
+
+    final incomingRequests =
+    await DatabaseHelper.instance
+        .getIncomingRequests(
+      updatedUser!['id'],
+    );
+
+    final myRequests =
+    await DatabaseHelper.instance
+        .getUserRequests(
+      updatedUser!['id'],
     );
 
     setState(() {
-      donations = data;
+
+      donations = donationData;
+
+      activeDonations =
+          filteredActive;
+
+      incomingCount =
+          incomingRequests.where(
+                (request) {
+
+              return request['status']
+                  == 'Pending';
+            },
+          ).length;
+
+      myRequestCount =
+          myRequests.where(
+                (request) {
+
+              return request['status']
+                  == 'Pending';
+            },
+          ).length;
     });
+  }
+
+  // =========================
+  // REFRESH USER
+  // =========================
+
+  Future<void> refreshUser()
+  async {
+
+    final refreshedUser =
+    await DatabaseHelper.instance
+        .getUserById(
+      updatedUser!['id'],
+    );
+
+    setState(() {
+
+      updatedUser =
+          refreshedUser;
+    });
+
+    loadProfileData();
   }
 
   @override
   Widget build(BuildContext context) {
 
     final primary =
-        Theme.of(context).colorScheme.primary;
+    const Color(0xFF2E7D32);
 
     return Scaffold(
+
       backgroundColor:
-          const Color(0xFFF5F5F5),
+      const Color(0xFFF5F5F5),
 
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
+      appBar: AppBar(
 
-            // =========================
-            // HEADER
-            // =========================
+        backgroundColor: primary,
 
-            Container(
-              color: primary,
+        elevation: 0,
 
-              padding:
-                  const EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                24,
+        automaticallyImplyLeading:
+        false,
+
+        title: const Text(
+
+          'Profile',
+
+          style: TextStyle(
+
+            fontSize: 26,
+
+            fontWeight:
+            FontWeight.bold,
+
+            color: Colors.white,
+          ),
+        ),
+
+        actions: [
+
+          Padding(
+
+            padding:
+            const EdgeInsets.only(
+              right: 12,
+            ),
+
+            child: IconButton(
+
+              icon: const Icon(
+
+                Icons.logout_rounded,
+
+                color: Colors.white,
+
+                size: 28,
               ),
 
-              child: SafeArea(
-                bottom: false,
+              onPressed: () {
 
-                child: Row(
+                showDialog(
+
+                  context: context,
+
+                  builder: (context) {
+
+                    return AlertDialog(
+
+                      shape:
+                      RoundedRectangleBorder(
+
+                        borderRadius:
+                        BorderRadius.circular(
+                          20,
+                        ),
+                      ),
+
+                      title:
+                      const Text(
+                        'Logout',
+                      ),
+
+                      content:
+                      const Text(
+                        'Are you sure you want to logout?',
+                      ),
+
+                      actions: [
+
+                        TextButton(
+
+                          onPressed:
+                              () {
+
+                            Navigator.pop(
+                                context);
+                          },
+
+                          child:
+                          const Text(
+                            'Cancel',
+                          ),
+                        ),
+
+                        ElevatedButton(
+
+                          style:
+                          ElevatedButton.styleFrom(
+                            backgroundColor:
+                            Colors.red,
+                          ),
+
+                          onPressed:
+                              () {
+
+                            Navigator.pushAndRemoveUntil(
+
+                              context,
+
+                              MaterialPageRoute(
+
+                                builder: (_) =>
+                                const LoginScreen(),
+                              ),
+
+                                  (route) => false,
+                            );
+                          },
+
+                          child:
+                          const Text(
+                            'Logout',
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+
+      body: RefreshIndicator(
+
+        onRefresh: refreshUser,
+
+        child: SingleChildScrollView(
+
+          physics:
+          const AlwaysScrollableScrollPhysics(),
+
+          child: Padding(
+
+            padding:
+            const EdgeInsets.all(
+              20,
+            ),
+
+            child: Column(
+
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+
+              children: [
+
+                // =========================
+                // PROFILE CARD
+                // =========================
+
+                buildProfileCard(
+                  primary,
+                ),
+
+                const SizedBox(
+                  height: 22,
+                ),
+
+                // =========================
+                // IMPACT CARD
+                // =========================
+
+                buildImpactCard(
+                  primary,
+                ),
+
+                const SizedBox(
+                  height: 22,
+                ),
+
+                // =========================
+                // REQUEST CARDS
+                // =========================
+
+                Row(
+
+                  children: [
+
+                    Expanded(
+
+                      child:
+                      buildRequestCard(
+
+                        title:
+                        'Incoming Requests',
+
+                        subtitle:
+                        'View food requests from users',
+
+                        icon:
+                        Icons.notifications,
+
+                        iconColor:
+                        Colors.orange,
+
+                        badgeCount:
+                        incomingCount,
+
+                        onTap: () async {
+
+                          await Navigator.push(
+
+                            context,
+
+                            MaterialPageRoute(
+
+                              builder: (_) =>
+                                  IncomingRequestsScreen(
+                                    user:
+                                    updatedUser!,
+                                  ),
+                            ),
+                          );
+
+                          loadProfileData();
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 16,
+                    ),
+
+                    Expanded(
+
+                      child:
+                      buildRequestCard(
+
+                        title:
+                        'My Requests',
+
+                        subtitle:
+                        'Track your requested food status',
+
+                        icon:
+                        Icons.receipt_long,
+
+                        iconColor:
+                        primary,
+
+                        badgeCount:
+                        myRequestCount,
+
+                        onTap: () async {
+
+                          await Navigator.push(
+
+                            context,
+
+                            MaterialPageRoute(
+
+                              builder: (_) =>
+                                  MyRequestsScreen(
+                                    user:
+                                    updatedUser!,
+                                  ),
+                            ),
+                          );
+
+                          loadProfileData();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 30,
+                ),
+
+                // =========================
+// MANAGE DONATIONS
+// =========================
+
+                GestureDetector(
+
+                  onTap: () async {
+
+                    await Navigator.push(
+
+                      context,
+
+                      MaterialPageRoute(
+
+                        builder: (_) =>
+                            ManageDonationsScreen(
+                              user: updatedUser!,
+                            ),
+                      ),
+                    );
+
+                    loadProfileData();
+                  },
+
+                  child: Container(
+
+                    padding:
+                    const EdgeInsets.all(
+                      20,
+                    ),
+
+                    decoration:
+                    BoxDecoration(
+
+                      color: Colors.white,
+
+                      borderRadius:
+                      BorderRadius.circular(
+                        24,
+                      ),
+                    ),
+
+                    child: Row(
+
+                      children: [
+
+                        CircleAvatar(
+
+                          radius: 28,
+
+                          backgroundColor:
+                          primary.withOpacity(
+                            0.12,
+                          ),
+
+                          child: Icon(
+
+                            Icons.inventory_2,
+
+                            color: primary,
+
+                            size: 28,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          width: 18,
+                        ),
+
+                        Expanded(
+
+                          child: Column(
+
+                            crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+
+                            children: [
+
+                              const Text(
+
+                                'Manage Donations',
+
+                                style: TextStyle(
+
+                                  fontSize: 20,
+
+                                  fontWeight:
+                                  FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                height: 6,
+                              ),
+
+                              Text(
+
+                                'View and manage your active food donations',
+
+                                style: TextStyle(
+
+                                  color:
+                                  Colors.grey[
+                                  600],
+
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Column(
+
+                          children: [
+
+                            Container(
+
+                              padding:
+                              const EdgeInsets.symmetric(
+
+                                horizontal: 12,
+
+                                vertical: 6,
+                              ),
+
+                              decoration:
+                              BoxDecoration(
+
+                                color:
+                                Colors.orange
+                                    .shade50,
+
+                                borderRadius:
+                                BorderRadius.circular(
+                                  20,
+                                ),
+                              ),
+
+                              child: Text(
+
+                                '${activeDonations.length} Active',
+
+                                style: TextStyle(
+
+                                  color:
+                                  Colors.orange
+                                      .shade800,
+
+                                  fontWeight:
+                                  FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 10,
+                            ),
+
+                            Icon(
+
+                              Icons.arrow_forward_ios,
+
+                              size: 18,
+
+                              color:
+                              Colors.grey[500],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 30,
+                ),
+                // =========================
+                // DONATION HISTORY
+                // =========================
+
+                Row(
+
                   mainAxisAlignment:
-                      MainAxisAlignment
-                          .spaceBetween,
+                  MainAxisAlignment
+                      .spaceBetween,
 
                   children: [
 
                     const Text(
-                      'Profile',
+
+                      'Donation History',
 
                       style: TextStyle(
+
                         fontSize: 28,
+
                         fontWeight:
-                            FontWeight.w700,
-                        color: Colors.white,
+                        FontWeight.bold,
                       ),
                     ),
 
-                    Container(
-                      width: 42,
-                      height: 42,
+                    Text(
 
-                      decoration:
-                          BoxDecoration(
-                        color: Colors.white
-                            .withValues(
-                          alpha: 0.2,
-                        ),
+                      '${donations.length} items',
 
-                        borderRadius:
-                            BorderRadius
-                                .circular(21),
-                      ),
+                      style: TextStyle(
 
-                      child: const Icon(
-                        Icons.settings,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                        color: primary,
 
-            // =========================
-            // PROFILE CARD
-            // =========================
-
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 18,
-              ),
-
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    18,
-                  ),
-
-                  boxShadow: [
-
-                    BoxShadow(
-                      color: Colors.black
-                          .withValues(
-                        alpha: 0.04,
-                      ),
-
-                      blurRadius: 10,
-
-                      offset:
-                          const Offset(
-                        0,
-                        4,
+                        fontWeight:
+                        FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
 
-                padding:
-                    const EdgeInsets.all(20),
-
-                child: Row(
-                  children: [
-
-                    // PROFILE IMAGE
-
-                    Stack(
-                      children: [
-
-                        CircleAvatar(
-                          radius: 50,
-
-                          backgroundColor:
-                              primary
-                                  .withValues(
-                            alpha: 0.15,
-                          ),
-
-                          child: Text(
-                            widget.user['name']
-                                .toString()[0]
-                                .toUpperCase(),
-
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight:
-                                  FontWeight.bold,
-                              color: primary,
-                            ),
-                          ),
-                        ),
-
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-
-                          child: Container(
-                            width: 30,
-                            height: 30,
-
-                            decoration:
-                                BoxDecoration(
-                              color: primary,
-
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                15,
-                              ),
-
-                              border:
-                                  Border.all(
-                                color:
-                                    Colors.white,
-                                width: 2,
-                              ),
-                            ),
-
-                            child: const Icon(
-                              Icons.edit,
-                              color:
-                                  Colors.white,
-                              size: 15,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(width: 16),
-
-                    // USER INFO
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-
-                        children: [
-
-                          Text(
-                            widget.user['name'],
-
-                            style:
-                                const TextStyle(
-                              fontSize: 24,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                            ),
-                          ),
-
-                          const SizedBox(
-                              height: 10),
-
-                          // DONOR BADGE
-
-                          Container(
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-
-                            decoration:
-                                BoxDecoration(
-                              color: primary
-                                  .withValues(
-                                alpha: 0.08,
-                              ),
-
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                20,
-                              ),
-
-                              border:
-                                  Border.all(
-                                color: primary,
-                                width: 1.2,
-                              ),
-                            ),
-
-                            child: Row(
-                              mainAxisSize:
-                                  MainAxisSize.min,
-
-                              children: [
-
-                                Icon(
-                                  Icons.eco,
-                                  color: primary,
-                                  size: 16,
-                                ),
-
-                                const SizedBox(
-                                  width: 6,
-                                ),
-
-                                Text(
-                                  'Food Donor',
-
-                                  style:
-                                      TextStyle(
-                                    fontSize: 12,
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
-
-                                    color:
-                                        primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(
-                              height: 12),
-
-                          Text(
-                            widget.user['email'],
-
-                            style: TextStyle(
-                              fontSize: 13,
-                              color:
-                                  Colors.grey[
-                                      600],
-                              height: 1.5,
-                            ),
-                          ),
-
-                          const SizedBox(
-                              height: 4),
-
-                          Text(
-                            widget.user['phone'] ??
-                                '',
-
-                            style: TextStyle(
-                              fontSize: 13,
-                              color:
-                                  Colors.grey[
-                                      600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // =========================
-            // IMPACT CARD
-            // =========================
-
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-
-              child: Container(
-                decoration: BoxDecoration(
-                  color: primary,
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    18,
-                  ),
+                const SizedBox(
+                  height: 18,
                 ),
 
-                padding:
-                    const EdgeInsets.all(18),
+                donations.isEmpty
 
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                    ? Center(
 
-                  children: [
+                  child: Padding(
 
-                    Row(
+                    padding:
+                    const EdgeInsets.symmetric(
+                      vertical: 50,
+                    ),
+
+                    child: Column(
+
                       children: const [
 
                         Icon(
-                          Icons.eco,
-                          color: Colors.white,
-                          size: 22,
+                          Icons.fastfood,
+
+                          size: 70,
+
+                          color:
+                          Colors.grey,
                         ),
 
-                        SizedBox(width: 8),
+                        SizedBox(
+                          height: 12,
+                        ),
 
                         Text(
-                          'Total Impact',
 
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight:
-                                FontWeight
-                                    .w600,
+                          'No donation history yet',
+
+                          style:
+                          TextStyle(
 
                             color:
-                                Colors.white,
+                            Colors.grey,
+
+                            fontSize:
+                            16,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(
-                        height: 18),
-
-                    Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment
-                              .spaceAround,
-
-                      children: [
-
-                        // DONATIONS
-
-                        buildImpactStat(
-                          icon: Icons
-                              .fastfood_outlined,
-
-                          title: 'Donations',
-
-                          value: donations
-                              .length
-                              .toString(),
-
-                          primary: primary,
-                        ),
-
-                        Container(
-                          width: 1,
-                          height: 75,
-
-                          color: Colors.white
-                              .withValues(
-                            alpha: 0.2,
-                          ),
-                        ),
-
-                        // PEOPLE HELPED
-
-                        buildImpactStat(
-                          icon: Icons.people,
-
-                          title:
-                              'People Helped',
-
-                          value:
-                              '${donations.length * 3}',
-
-                          primary: primary,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 26),
-
-            // =========================
-            // REQUEST MANAGEMENT
-            // =========================
-
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-
-              child: Row(
-                children: [
-
-                  // INCOMING REQUESTS
-
-                  Expanded(
-                    child: GestureDetector(
-
-                      onTap: () {
-
-                        Navigator.push(
-                          context,
-
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                IncomingRequestsScreen(
-                              user:
-                                  widget.user,
-                            ),
-                          ),
-                        );
-                      },
-
-                      child: Container(
-
-                        padding:
-                            const EdgeInsets
-                                .all(18),
-
-                        decoration:
-                            BoxDecoration(
-
-                          color: Colors.white,
-
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            18,
-                          ),
-
-                          boxShadow: [
-
-                            BoxShadow(
-                              color: Colors
-                                  .black
-                                  .withValues(
-                                alpha: 0.04,
-                              ),
-
-                              blurRadius: 10,
-
-                              offset:
-                                  const Offset(
-                                0,
-                                4,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        child: Column(
-                          children: [
-
-                            CircleAvatar(
-
-                              radius: 26,
-
-                              backgroundColor:
-                                  Colors.orange
-                                      .withValues(
-                                alpha: 0.12,
-                              ),
-
-                              child:
-                                  const Icon(
-                                Icons
-                                    .notifications_active,
-
-                                color: Colors
-                                    .orange,
-
-                                size: 28,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 14,
-                            ),
-
-                            const Text(
-                              "Incoming Requests",
-
-                              textAlign:
-                                  TextAlign
-                                      .center,
-
-                              style:
-                                  TextStyle(
-                                fontSize: 15,
-
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 6,
-                            ),
-
-                            Text(
-                              "View food requests from users",
-
-                              textAlign:
-                                  TextAlign
-                                      .center,
-
-                              style:
-                                  TextStyle(
-                                fontSize: 12,
-
-                                color: Colors
-                                        .grey[
-                                    600],
-
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ),
+                )
 
-                  const SizedBox(width: 16),
+                    : Column(
 
-                  // MY REQUESTS
+                  children:
+                  donations.map(
+                        (donation) {
 
-                  Expanded(
-                    child: GestureDetector(
+                      return Container(
 
-                      onTap: () {
-
-                        Navigator.push(
-                          context,
-
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                MyRequestsScreen(
-                              user:
-                                  widget.user,
-                            ),
-                          ),
-                        );
-                      },
-
-                      child: Container(
-
-                        padding:
-                            const EdgeInsets
-                                .all(18),
-
-                        decoration:
-                            BoxDecoration(
-
-                          color: Colors.white,
-
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            18,
-                          ),
-
-                          boxShadow: [
-
-                            BoxShadow(
-                              color: Colors
-                                  .black
-                                  .withValues(
-                                alpha: 0.04,
-                              ),
-
-                              blurRadius: 10,
-
-                              offset:
-                                  const Offset(
-                                0,
-                                4,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        child: Column(
-                          children: [
-
-                            CircleAvatar(
-
-                              radius: 26,
-
-                              backgroundColor:
-                                  primary
-                                      .withValues(
-                                alpha: 0.12,
-                              ),
-
-                              child: Icon(
-                                Icons
-                                    .receipt_long,
-
-                                color: primary,
-                                size: 28,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 14,
-                            ),
-
-                            const Text(
-                              "My Requests",
-
-                              textAlign:
-                                  TextAlign
-                                      .center,
-
-                              style:
-                                  TextStyle(
-                                fontSize: 15,
-
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 6,
-                            ),
-
-                            Text(
-                              "Track your requested food status",
-
-                              textAlign:
-                                  TextAlign
-                                      .center,
-
-                              style:
-                                  TextStyle(
-                                fontSize: 12,
-
-                                color: Colors
-                                        .grey[
-                                    600],
-
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 26),
-
-            // =========================
-            // HISTORY TITLE
-            // =========================
-
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-
-              child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .spaceBetween,
-
-                children: [
-
-                  const Text(
-                    'Donation History',
-
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-
-                  Text(
-                    '${donations.length} items',
-
-                    style: TextStyle(
-                      color: primary,
-                      fontWeight:
-                          FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // =========================
-            // HISTORY LIST
-            // =========================
-
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-
-              child: Column(
-                children:
-                    donations.map((item) {
-
-                  return Padding(
-                    padding:
+                        margin:
                         const EdgeInsets.only(
-                      bottom: 14,
-                    ),
+                          bottom: 14,
+                        ),
 
-                    child: Container(
-                      decoration:
-                          BoxDecoration(
-                        color: Colors.white,
-
-                        borderRadius:
-                            BorderRadius
-                                .circular(
+                        padding:
+                        const EdgeInsets.all(
                           16,
                         ),
 
-                        boxShadow: [
+                        decoration:
+                        BoxDecoration(
 
-                          BoxShadow(
-                            color: Colors.black
-                                .withValues(
-                              alpha: 0.03,
-                            ),
+                          color:
+                          Colors.white,
 
-                            blurRadius: 8,
-
-                            offset:
-                                const Offset(
-                              0,
-                              3,
-                            ),
+                          borderRadius:
+                          BorderRadius.circular(
+                            22,
                           ),
-                        ],
-                      ),
+                        ),
 
-                      padding:
-                          const EdgeInsets
-                              .all(12),
+                        child: Row(
 
-                      child: Row(
-                        children: [
+                          children: [
 
-                          // IMAGE
+                            CircleAvatar(
 
-                          ClipRRect(
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              10,
-                            ),
+                              radius: 36,
 
-                            child: item[
-                                        'imageUrl'] !=
-                                    null
+                              backgroundColor:
+                              Colors.green
+                                  .shade50,
 
-                                ? Image.file(
-                                    File(
-                                      item[
-                                          'imageUrl'],
-                                    ),
+                              backgroundImage:
+                              donation['imageUrl'] !=
+                                  null &&
+                                  donation[
+                                  'imageUrl']
+                                      .toString()
+                                      .isNotEmpty
 
-                                    width: 65,
-                                    height: 65,
-
-                                    fit: BoxFit
-                                        .cover,
-                                  )
-
-                                : Container(
-                                    width: 65,
-                                    height: 65,
-
-                                    color: Colors
-                                            .grey[
-                                        300],
-
-                                    child:
-                                        const Icon(
-                                      Icons
-                                          .fastfood,
-
-                                      color: Colors
-                                          .grey,
-                                    ),
-                                  ),
-                          ),
-
-                          const SizedBox(
-                              width: 14),
-
-                          // INFO
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
-
-                              children: [
-
-                                Text(
-                                  item['title'],
-
-                                  style:
-                                      const TextStyle(
-                                    fontSize: 16,
-
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
-                                  ),
+                                  ? FileImage(
+                                File(
+                                  donation[
+                                  'imageUrl'],
                                 ),
+                              )
 
-                                const SizedBox(
-                                    height: 4),
+                                  : null,
 
-                                Text(
-                                  item[
-                                      'location'],
+                              child:
+                              donation['imageUrl'] ==
+                                  null ||
+                                  donation[
+                                  'imageUrl']
+                                      .toString()
+                                      .isEmpty
 
-                                  style:
-                                      TextStyle(
-                                    color: Colors
-                                            .grey[
-                                        600],
+                                  ? Icon(
+                                Icons.fastfood,
 
-                                    fontSize:
-                                        13,
+                                color:
+                                primary,
+
+                                size:
+                                32,
+                              )
+
+                                  : null,
+                            ),
+
+                            const SizedBox(
+                              width: 16,
+                            ),
+
+                            Expanded(
+
+                              child: Column(
+
+                                crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+
+                                children: [
+
+                                  Text(
+
+                                    donation['title'],
+
+                                    style:
+                                    const TextStyle(
+
+                                      fontSize:
+                                      22,
+
+                                      fontWeight:
+                                      FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
 
-                          // STATUS
+                                  const SizedBox(
+                                    height: 6,
+                                  ),
 
-                          Container(
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
+                                  Text(
 
-                            decoration:
-                                BoxDecoration(
-                              color: Colors
-                                  .green[50],
+                                    donation['location'],
 
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                20,
+                                    style:
+                                    TextStyle(
+
+                                      color:
+                                      Colors.grey.shade700,
+
+                                      fontSize:
+                                      16,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 
-                            child: Row(
-                              mainAxisSize:
-                                  MainAxisSize.min,
+                            Container(
 
-                              children: const [
+                              padding:
+                              const EdgeInsets.symmetric(
 
-                                Icon(
-                                  Icons
-                                      .check_circle,
+                                horizontal:
+                                14,
 
-                                  color: Color(
-                                      0xFF2E7D32),
+                                vertical:
+                                8,
+                              ),
 
-                                  size: 14,
+                              decoration:
+                              BoxDecoration(
+
+                                color:
+                                Colors.green.shade50,
+
+                                borderRadius:
+                                BorderRadius.circular(
+                                  20,
                                 ),
+                              ),
 
-                                SizedBox(width: 4),
+                              child: Row(
 
-                                Text(
-                                  'Completed',
+                                children:
+                                const [
 
-                                  style:
-                                      TextStyle(
-                                    fontSize: 12,
+                                  Icon(
 
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
+                                    Icons
+                                        .check_circle,
 
-                                    color: Color(
-                                      0xFF2E7D32,
+                                    color:
+                                    Colors.green,
+
+                                    size:
+                                    18,
+                                  ),
+
+                                  SizedBox(
+                                    width: 6,
+                                  ),
+
+                                  Text(
+
+                                    'Completed',
+
+                                    style:
+                                    TextStyle(
+
+                                      color:
+                                      Colors.green,
+
+                                      fontWeight:
+                                      FontWeight.bold,
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ).toList(),
+                ),
 
-            const SizedBox(height: 25),
-          ],
+                const SizedBox(
+                  height: 30,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
+  // =========================
+  // PROFILE CARD
+  // =========================
+
+  Widget buildProfileCard(
+      Color primary,
+      ) {
+
+    return Container(
+
+      padding:
+      const EdgeInsets.all(
+        22,
+      ),
+
+      decoration:
+      BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius:
+        BorderRadius.circular(
+          28,
+        ),
+      ),
+
+      child: Row(
+
+        children: [
+
+          Stack(
+
+            children: [
+
+              CircleAvatar(
+
+                radius: 58,
+
+                backgroundColor:
+                Colors.green
+                    .shade50,
+
+                backgroundImage:
+                updatedUser![
+                'profileImage'] !=
+                    null &&
+                    updatedUser![
+                    'profileImage']
+                        .toString()
+                        .isNotEmpty
+
+                    ? FileImage(
+                  File(
+                    updatedUser![
+                    'profileImage'],
+                  ),
+                )
+
+                    : null,
+
+                child:
+                updatedUser![
+                'profileImage'] ==
+                    null ||
+                    updatedUser![
+                    'profileImage']
+                        .toString()
+                        .isEmpty
+
+                    ? Text(
+
+                  updatedUser![
+                  'name'][0]
+                      .toUpperCase(),
+
+                  style:
+                  TextStyle(
+
+                    fontSize:
+                    52,
+
+                    fontWeight:
+                    FontWeight.bold,
+
+                    color:
+                    primary,
+                  ),
+                )
+
+                    : null,
+              ),
+
+              Positioned(
+
+                bottom: 0,
+
+                right: 0,
+
+                child: GestureDetector(
+
+                  onTap: () async {
+
+                    await Navigator.push(
+
+                      context,
+
+                      MaterialPageRoute(
+
+                        builder: (_) =>
+                            EditProfileScreen(
+                              user:
+                              updatedUser!,
+                            ),
+                      ),
+                    );
+
+                    refreshUser();
+                  },
+
+                  child: Container(
+
+                    padding:
+                    const EdgeInsets.all(
+                      10,
+                    ),
+
+                    decoration:
+                    BoxDecoration(
+
+                      color: primary,
+
+                      shape:
+                      BoxShape.circle,
+
+                      border: Border.all(
+
+                        color:
+                        Colors.white,
+
+                        width: 3,
+                      ),
+                    ),
+
+                    child: const Icon(
+
+                      Icons.edit,
+
+                      color:
+                      Colors.white,
+
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            width: 20,
+          ),
+
+          Expanded(
+
+            child: Column(
+
+              crossAxisAlignment:
+              CrossAxisAlignment
+                  .start,
+
+              children: [
+
+                Text(
+
+                  updatedUser!['name'],
+
+                  style:
+                  const TextStyle(
+
+                    fontSize: 26,
+
+                    fontWeight:
+                    FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 10,
+                ),
+
+                Container(
+
+                  padding:
+                  const EdgeInsets.symmetric(
+
+                    horizontal: 16,
+
+                    vertical: 8,
+                  ),
+
+                  decoration:
+                  BoxDecoration(
+
+                    border: Border.all(
+                      color: primary,
+                    ),
+
+                    borderRadius:
+                    BorderRadius.circular(
+                      25,
+                    ),
+                  ),
+
+                  child: Row(
+
+                    mainAxisSize:
+                    MainAxisSize.min,
+
+                    children: [
+
+                      Icon(
+
+                        Icons.eco,
+
+                        color: primary,
+
+                        size: 18,
+                      ),
+
+                      const SizedBox(
+                        width: 8,
+                      ),
+
+                      Text(
+
+                        'Food Donor',
+
+                        style:
+                        TextStyle(
+
+                          color:
+                          primary,
+
+                          fontWeight:
+                          FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 16,
+                ),
+
+                Text(
+
+                  updatedUser!['email'],
+
+                  style:
+                  TextStyle(
+
+                    color:
+                    Colors.grey
+                        .shade700,
+
+                    fontSize: 16,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
+                Text(
+
+                  updatedUser!['phone'],
+
+                  style:
+                  TextStyle(
+
+                    color:
+                    Colors.grey
+                        .shade700,
+
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // IMPACT CARD
+  // =========================
+
+  Widget buildImpactCard(
+      Color primary,
+      ) {
+
+    return Container(
+
+      padding:
+      const EdgeInsets.symmetric(
+
+        horizontal: 18,
+
+        vertical: 16,
+      ),
+
+      decoration:
+      BoxDecoration(
+
+        color: primary,
+
+        borderRadius:
+        BorderRadius.circular(
+          28,
+        ),
+      ),
+
+      child: Column(
+
+        children: [
+
+          Row(
+
+            children: const [
+
+              Icon(
+                Icons.eco,
+                color:
+                Colors.white,
+              ),
+
+              SizedBox(
+                width: 10,
+              ),
+
+              Text(
+
+                'Total Impact',
+
+                style:
+                TextStyle(
+
+                  color:
+                  Colors.white,
+
+                  fontSize: 22,
+
+                  fontWeight:
+                  FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 24,
+          ),
+
+          Row(
+
+            children: [
+
+              Expanded(
+
+                child:
+                buildImpactStat(
+
+                  icon:
+                  Icons.fastfood_outlined,
+
+                  title:
+                  'Donations',
+
+                  value:
+                  donations.length
+                      .toString(),
+                ),
+              ),
+
+              Container(
+
+                height: 90,
+
+                width: 1,
+
+                color:
+                Colors.white24,
+              ),
+
+              Expanded(
+
+                child:
+                buildImpactStat(
+
+                  icon:
+                  Icons.people,
+
+                  title:
+                  'People Helped',
+
+                  value:
+                  donations.length
+                      .toString(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget buildImpactStat({
+
     required IconData icon,
+
     required String title,
+
     required String value,
-    required Color primary,
+
   }) {
 
     return Column(
+
       children: [
 
-        Container(
-          width: 48,
-          height: 48,
+        CircleAvatar(
 
-          decoration: BoxDecoration(
-            color: Colors.white
-                .withValues(
-              alpha: 0.2,
-            ),
+          radius: 32,
 
-            borderRadius:
-                BorderRadius.circular(
-              24,
-            ),
-          ),
+          backgroundColor:
+          Colors.white24,
 
           child: Icon(
+
             icon,
-            color: Colors.white,
-            size: 22,
+
+            color:
+            Colors.white,
+
+            size: 30,
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(
+          height: 14,
+        ),
 
         Text(
+
           title,
 
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.white,
-            fontWeight:
-                FontWeight.w500,
+          style:
+          const TextStyle(
+
+            color:
+            Colors.white,
+
+            fontSize: 18,
           ),
         ),
 
-        const SizedBox(height: 3),
+        const SizedBox(
+          height: 10,
+        ),
 
         Text(
+
           value,
 
-          style: const TextStyle(
-            fontSize: 22,
+          style:
+          const TextStyle(
+
+            color:
+            Colors.white,
+
+            fontSize: 34,
+
             fontWeight:
-                FontWeight.bold,
-            color: Colors.white,
+            FontWeight.bold,
           ),
         ),
       ],
+    );
+  }
+
+  // =========================
+  // REQUEST CARD
+  // =========================
+
+  Widget buildRequestCard({
+
+    required String title,
+
+    required String subtitle,
+
+    required IconData icon,
+
+    required Color iconColor,
+
+    required VoidCallback onTap,
+
+    required int badgeCount,
+
+  }) {
+
+    return GestureDetector(
+
+      onTap: onTap,
+
+      child: Stack(
+
+        children: [
+
+          Container(
+
+            padding:
+            const EdgeInsets.symmetric(
+
+              horizontal: 14,
+
+              vertical: 18,
+            ),
+
+            decoration:
+            BoxDecoration(
+
+              color:
+              Colors.white,
+
+              borderRadius:
+              BorderRadius.circular(
+                24,
+              ),
+            ),
+
+            child: Column(
+
+              children: [
+
+                CircleAvatar(
+
+                  radius: 24,
+
+                  backgroundColor:
+                  iconColor.withOpacity(
+                    0.15,
+                  ),
+
+                  child: Icon(
+
+                    icon,
+
+                    color:
+                    iconColor,
+
+                    size: 24,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 16,
+                ),
+
+                Text(
+
+                  title,
+
+                  textAlign:
+                  TextAlign.center,
+
+                  style:
+                  const TextStyle(
+
+                    fontSize: 16,
+
+                    fontWeight:
+                    FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 4,
+                ),
+
+                Text(
+
+                  subtitle,
+
+                  textAlign:
+                  TextAlign.center,
+
+                  style:
+                  TextStyle(
+
+                    color:
+                    Colors.grey
+                        .shade600,
+
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (badgeCount > 0)
+
+            Positioned(
+
+              top: 8,
+
+              right: 8,
+
+              child: Container(
+
+                padding:
+                const EdgeInsets.symmetric(
+
+                  horizontal: 6,
+
+                  vertical: 2,
+                ),
+
+                decoration:
+                BoxDecoration(
+
+                  color:
+                  Colors.red,
+
+                  borderRadius:
+                  BorderRadius.circular(
+                    20,
+                  ),
+                ),
+
+                child: Text(
+
+                  badgeCount.toString(),
+
+                  style:
+                  const TextStyle(
+
+                    color:
+                    Colors.white,
+
+                    fontSize: 10,
+
+                    fontWeight:
+                    FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -6,12 +6,12 @@ import '../database/database_helper.dart';
 import 'donation_details_screen.dart';
 
 class BrowseDonationsScreen extends StatefulWidget {
-
-    final Map<String, dynamic> user;
+  final Map<String, dynamic> user;
 
   const BrowseDonationsScreen({
     super.key,
-    required this.user,});
+    required this.user,
+  });
 
   @override
   State<BrowseDonationsScreen> createState() =>
@@ -20,7 +20,6 @@ class BrowseDonationsScreen extends StatefulWidget {
 
 class _BrowseDonationsScreenState
     extends State<BrowseDonationsScreen> {
-
   final List<String> _categories = [
     'All',
     'Vegetables',
@@ -32,25 +31,74 @@ class _BrowseDonationsScreenState
 
   String _selectedCategory = 'All';
 
-  final TextEditingController _searchController =
+  final TextEditingController
+  _searchController =
   TextEditingController();
 
-  List<Map<String, dynamic>> donations = [];
+  List<Map<String, dynamic>>
+  donations = [];
+
+  List<Map<String, dynamic>>
+  filteredDonations = [];
+
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
 
     loadDonations();
+
+    _searchController.addListener(() {
+      filterDonations();
+    });
   }
 
-  Future<void> loadDonations() async {
+  // =========================
+  // LOAD DONATIONS
+  // =========================
 
+  Future<void> loadDonations() async {
     final data =
-    await DatabaseHelper.instance.getDonations();
+    await DatabaseHelper.instance
+        .getAvailableDonations(
+      widget.user['id'],
+    );
 
     setState(() {
       donations = data;
+
+      filteredDonations = data;
+
+      isLoading = false;
+    });
+  }
+
+  // =========================
+  // SEARCH FILTER
+  // =========================
+
+  void filterDonations() {
+    final query =
+    _searchController.text
+        .toLowerCase();
+
+    setState(() {
+      filteredDonations =
+          donations.where((donation) {
+            final title =
+            donation['title']
+                .toString()
+                .toLowerCase();
+
+            final location =
+            donation['location']
+                .toString()
+                .toLowerCase();
+
+            return title.contains(query) ||
+                location.contains(query);
+          }).toList();
     });
   }
 
@@ -63,17 +111,21 @@ class _BrowseDonationsScreenState
 
   @override
   Widget build(BuildContext context) {
-
     final primary =
-        Theme.of(context).colorScheme.primary;
+        Theme.of(context)
+            .colorScheme
+            .primary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor:
+      const Color(0xFFF5F5F5),
 
       body: Column(
         children: [
-
+          // =========================
           // HEADER
+          // =========================
+
           Container(
             color: primary,
 
@@ -81,25 +133,32 @@ class _BrowseDonationsScreenState
               bottom: false,
 
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding:
+                const EdgeInsets.all(
+                  18,
+                ),
 
                 child: Column(
                   children: [
-
                     Row(
                       mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
+                      MainAxisAlignment
+                          .spaceBetween,
 
                       children: [
-
                         GestureDetector(
                           onTap: () {
-                            Navigator.pop(context);
+                            Navigator.pop(
+                                context);
                           },
 
                           child: const Icon(
-                            Icons.arrow_back_ios,
-                            color: Colors.white,
+                            Icons
+                                .arrow_back_ios,
+
+                            color:
+                            Colors.white,
+
                             size: 22,
                           ),
                         ),
@@ -107,49 +166,66 @@ class _BrowseDonationsScreenState
                         const Text(
                           'Browse Donations',
 
-                          style: TextStyle(
-                            color: Colors.white,
+                          style:
+                          TextStyle(
+                            color:
+                            Colors.white,
+
                             fontSize: 24,
+
                             fontWeight:
-                            FontWeight.bold,
+                            FontWeight
+                                .bold,
                           ),
                         ),
 
-                        GestureDetector(
-                          onTap: () {},
+                        const Icon(
+                          Icons.tune,
 
-                          child: const Icon(
-                            Icons.tune,
-                            color: Colors.white,
-                            size: 25,
-                          ),
+                          color:
+                          Colors.white,
+
+                          size: 25,
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(
+                      height: 20,
+                    ),
 
                     // SEARCH BAR
+
                     Container(
                       height: 52,
 
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+                      decoration:
+                      BoxDecoration(
+                        color:
+                        Colors.white,
 
                         borderRadius:
-                        BorderRadius.circular(
-                            30),
+                        BorderRadius
+                            .circular(
+                          30,
+                        ),
 
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black
-                                .withValues(
-                                alpha: 0.06),
+                            color: Colors
+                                .black
+                                .withOpacity(
+                              0.06,
+                            ),
 
-                            blurRadius: 10,
+                            blurRadius:
+                            10,
 
                             offset:
-                            const Offset(0, 4),
+                            const Offset(
+                              0,
+                              4,
+                            ),
                           ),
                         ],
                       ),
@@ -163,20 +239,29 @@ class _BrowseDonationsScreenState
                           hintText:
                           'Search food, location, etc...',
 
-                          hintStyle: TextStyle(
-                            color: Colors.grey,
+                          hintStyle:
+                          TextStyle(
+                            color:
+                            Colors.grey,
+
                             fontSize: 14,
                           ),
 
-                          prefixIcon: Icon(
+                          prefixIcon:
+                          Icon(
                             Icons.search,
-                            color: Colors.grey,
+
+                            color:
+                            Colors.grey,
                           ),
 
-                          border: InputBorder.none,
+                          border:
+                          InputBorder
+                              .none,
 
                           contentPadding:
-                          EdgeInsets.symmetric(
+                          EdgeInsets
+                              .symmetric(
                             vertical: 15,
                           ),
                         ),
@@ -188,104 +273,97 @@ class _BrowseDonationsScreenState
             ),
           ),
 
+          // =========================
           // CATEGORY CHIPS
+          // =========================
+
           Container(
             color: Colors.white,
+
             height: 64,
 
             child: ListView.builder(
-              scrollDirection: Axis.horizontal,
+              scrollDirection:
+              Axis.horizontal,
 
               padding:
-              const EdgeInsets.symmetric(
+              const EdgeInsets
+                  .symmetric(
                 horizontal: 14,
               ),
 
-              itemCount: _categories.length,
+              itemCount:
+              _categories.length,
 
-              itemBuilder: (context, index) {
-
+              itemBuilder:
+                  (context, index) {
                 final isSelected =
                     _selectedCategory ==
-                        _categories[index];
+                        _categories[
+                        index];
 
                 return Padding(
                   padding:
-                  const EdgeInsets.symmetric(
+                  const EdgeInsets
+                      .symmetric(
                     horizontal: 5,
                     vertical: 12,
                   ),
 
-                  child: GestureDetector(
-                    onTap: () {
+                  child:
+                  AnimatedContainer(
+                    duration:
+                    const Duration(
+                      milliseconds:
+                      200,
+                    ),
 
-                      setState(() {
-                        _selectedCategory =
-                        _categories[index];
-                      });
-                    },
+                    padding:
+                    const EdgeInsets
+                        .symmetric(
+                      horizontal: 18,
+                    ),
 
-                    child: AnimatedContainer(
-                      duration:
-                      const Duration(
-                          milliseconds: 200),
+                    decoration:
+                    BoxDecoration(
+                      color: isSelected
+                          ? primary
+                          : Colors.white,
 
-                      padding:
-                      const EdgeInsets.symmetric(
-                        horizontal: 18,
+                      borderRadius:
+                      BorderRadius
+                          .circular(
+                        22,
                       ),
 
-                      decoration: BoxDecoration(
+                      border: Border.all(
                         color: isSelected
                             ? primary
-                            : Colors.white,
-
-                        borderRadius:
-                        BorderRadius.circular(
-                            22),
-
-                        border: Border.all(
-                          color: isSelected
-                              ? primary
-                              : Colors.grey[300]!,
-                        ),
-
-                        boxShadow: isSelected
-                            ? [
-                          BoxShadow(
-                            color: primary
-                                .withValues(
-                              alpha: 0.2,
-                            ),
-
-                            blurRadius: 8,
-
-                            offset:
-                            const Offset(
-                              0,
-                              3,
-                            ),
-                          ),
-                        ]
-                            : [],
+                            : Colors.grey[
+                        300]!,
                       ),
+                    ),
 
-                      alignment: Alignment.center,
+                    alignment:
+                    Alignment.center,
 
-                      child: Text(
-                        _categories[index],
+                    child: Text(
+                      _categories[
+                      index],
 
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.black87,
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.black87,
 
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.w500,
+                        fontWeight:
+                        isSelected
+                            ? FontWeight
+                            .bold
+                            : FontWeight
+                            .w500,
 
-                          fontSize: 14,
-                        ),
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -294,11 +372,16 @@ class _BrowseDonationsScreenState
             ),
           ),
 
+          // =========================
           // LOCATION INFO
+          // =========================
+
           Container(
             color: Colors.white,
 
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+            const EdgeInsets
+                .fromLTRB(
               18,
               0,
               18,
@@ -307,38 +390,45 @@ class _BrowseDonationsScreenState
 
             child: Row(
               mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
+              MainAxisAlignment
+                  .spaceBetween,
 
               children: [
-
                 Row(
                   children: [
-
                     Icon(
-                      Icons.location_on_outlined,
+                      Icons
+                          .location_on_outlined,
+
                       color: primary,
+
                       size: 17,
                     ),
 
-                    const SizedBox(width: 4),
+                    const SizedBox(
+                        width: 4),
 
                     const Text(
                       'Near you • Within 10 km',
 
                       style: TextStyle(
                         fontSize: 13,
+
                         fontWeight:
-                        FontWeight.w500,
+                        FontWeight
+                            .w500,
                       ),
                     ),
                   ],
                 ),
 
                 Text(
-                  '${donations.length} donations found',
+                  '${filteredDonations.length} donations found',
 
-                  style: const TextStyle(
+                  style:
+                  const TextStyle(
                     color: Colors.grey,
+
                     fontSize: 13,
                   ),
                 ),
@@ -346,372 +436,442 @@ class _BrowseDonationsScreenState
             ),
           ),
 
+          // =========================
           // DONATION LIST
+          // =========================
+
           Expanded(
-            child: donations.isEmpty
-
+            child: isLoading
                 ? const Center(
-              child: Text(
-                "No donations available",
-              ),
+              child:
+              CircularProgressIndicator(),
             )
+                : filteredDonations
+                .isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment:
+                MainAxisAlignment
+                    .center,
 
-                : ListView.builder(
-              padding:
-              const EdgeInsets.fromLTRB(
-                16,
-                18,
-                16,
-                24,
-              ),
+                children: [
+                  Icon(
+                    Icons
+                        .fastfood_outlined,
 
-              itemCount: donations.length,
+                    size: 80,
 
-              itemBuilder: (context, index) {
-
-                final item =
-                donations[index];
-
-                return Padding(
-                  padding:
-                  const EdgeInsets.only(
-                    bottom: 18,
+                    color:
+                    Colors.grey[
+                    400],
                   ),
 
-                  child: GestureDetector(
-                    onTap: () {
+                  const SizedBox(
+                    height: 16,
+                  ),
 
-                      Navigator.push(
-                        context,
+                  Text(
+                    "No donations available",
 
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              DonationDetailsScreen(
-                                donation: item,
-                                currentUser: widget.user,                              ),
-                        ),
-                      );
-                    },
+                    style:
+                    TextStyle(
+                      fontSize:
+                      18,
 
-                    child: Container(
-                      height: 128,
+                      color: Colors
+                          .grey[
+                      600],
 
-                      decoration:
-                      BoxDecoration(
-                        color: Colors.white,
+                      fontWeight:
+                      FontWeight
+                          .w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : RefreshIndicator(
+              onRefresh:
+              loadDonations,
 
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                            22),
+              child:
+              ListView.builder(
+                padding:
+                const EdgeInsets
+                    .fromLTRB(
+                  16,
+                  18,
+                  16,
+                  24,
+                ),
 
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black
-                                .withValues(
-                              alpha: 0.04,
-                            ),
+                itemCount:
+                filteredDonations
+                    .length,
 
-                            blurRadius: 12,
+                itemBuilder:
+                    (context,
+                    index) {
+                  final item =
+                  filteredDonations[
+                  index];
 
-                            offset:
-                            const Offset(
-                              0,
-                              4,
-                            ),
+                  return Padding(
+                    padding:
+                    const EdgeInsets
+                        .only(
+                      bottom: 18,
+                    ),
+
+                    child:
+                    GestureDetector(
+                      onTap:
+                          () async {
+                        await Navigator
+                            .push(
+                          context,
+
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                DonationDetailsScreen(
+                                  donation:
+                                  item,
+
+                                  currentUser:
+                                  widget.user,
+                                ),
                           ),
-                        ],
-                      ),
+                        );
 
-                      child: Padding(
-                        padding:
-                        const EdgeInsets
-                            .all(12),
+                        loadDonations();
+                      },
 
-                        child: Row(
-                          children: [
+                      child:
+                      Container(
+                        height: 128,
 
-                            // IMAGE
-                            ClipRRect(
-                              borderRadius:
-                              BorderRadius
-                                  .circular(
-                                  16),
+                        decoration:
+                        BoxDecoration(
+                          color: Colors
+                              .white,
 
-                              child:
-                              item['imageUrl'] !=
-                                  null
-                                  ? Image.file(
-                                File(
-                                  item[
-                                  'imageUrl'],
+                          borderRadius:
+                          BorderRadius
+                              .circular(
+                            22,
+                          ),
+
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors
+                                  .black
+                                  .withOpacity(
+                                0.04,
+                              ),
+
+                              blurRadius:
+                              12,
+
+                              offset:
+                              const Offset(
+                                0,
+                                4,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        child:
+                        Padding(
+                          padding:
+                          const EdgeInsets
+                              .all(
+                            12,
+                          ),
+
+                          child: Row(
+                            children: [
+                              // IMAGE
+
+                              ClipRRect(
+                                borderRadius:
+                                BorderRadius.circular(
+                                  16,
                                 ),
 
-                                width: 95,
-                                height:
-                                95,
+                                child: item['imageUrl'] !=
+                                    null &&
+                                    item['imageUrl']
+                                        .toString()
+                                        .isNotEmpty
+                                    ? Image.file(
+                                  File(
+                                    item['imageUrl'],
+                                  ),
 
-                                fit: BoxFit
-                                    .cover,
-                              )
+                                  width:
+                                  95,
 
-                                  : Container(
-                                width: 95,
-                                height:
-                                95,
+                                  height:
+                                  95,
 
-                                color: Colors
-                                    .grey[
-                                300],
+                                  fit: BoxFit
+                                      .cover,
+                                )
+                                    : Container(
+                                  width:
+                                  95,
 
-                                child:
-                                const Center(
+                                  height:
+                                  95,
+
+                                  color:
+                                  Colors.grey[
+                                  300],
+
                                   child:
-                                  Icon(
-                                    Icons
-                                        .broken_image,
+                                  const Center(
+                                    child:
+                                    Icon(
+                                      Icons
+                                          .broken_image,
 
-                                    color: Colors
-                                        .grey,
+                                      color:
+                                      Colors.grey,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(
-                                width: 14),
+                              const SizedBox(
+                                  width:
+                                  14),
 
-                            // DETAILS
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
+                              // DETAILS
 
+                              Expanded(
+                                child:
+                                Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+
+                                  mainAxisAlignment:
+                                  MainAxisAlignment
+                                      .spaceBetween,
+
+                                  children: [
+                                    Text(
+                                      item[
+                                      'title'],
+
+                                      maxLines:
+                                      1,
+
+                                      overflow:
+                                      TextOverflow
+                                          .ellipsis,
+
+                                      style:
+                                      const TextStyle(
+                                        fontSize:
+                                        17,
+
+                                        fontWeight:
+                                        FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_outlined,
+
+                                          size:
+                                          14,
+
+                                          color:
+                                          Colors.grey,
+                                        ),
+
+                                        const SizedBox(
+                                            width:
+                                            4),
+
+                                        Expanded(
+                                          child:
+                                          Text(
+                                            item['location'],
+
+                                            overflow:
+                                            TextOverflow.ellipsis,
+
+                                            style:
+                                            const TextStyle(
+                                              fontSize:
+                                              12,
+
+                                              color:
+                                              Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.shopping_bag_outlined,
+
+                                          size:
+                                          14,
+
+                                          color:
+                                          Colors.grey,
+                                        ),
+
+                                        const SizedBox(
+                                            width:
+                                            4),
+
+                                        Expanded(
+                                          child:
+                                          Text(
+                                            item['quantity'],
+
+                                            overflow:
+                                            TextOverflow.ellipsis,
+
+                                            style:
+                                            const TextStyle(
+                                              fontSize:
+                                              12,
+
+                                              color:
+                                              Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.person_outline,
+
+                                          size:
+                                          14,
+
+                                          color:
+                                          Colors.grey,
+                                        ),
+
+                                        const SizedBox(
+                                            width:
+                                            4),
+
+                                        Expanded(
+                                          child:
+                                          Text(
+                                            item['donorName'],
+
+                                            overflow:
+                                            TextOverflow.ellipsis,
+
+                                            style:
+                                            const TextStyle(
+                                              fontSize:
+                                              12,
+
+                                              color:
+                                              Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(
+                                  width: 8),
+
+                              // STATUS
+
+                              Column(
                                 mainAxisAlignment:
                                 MainAxisAlignment
                                     .spaceBetween,
 
+                                crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .end,
+
                                 children: [
+                                  Container(
+                                    padding:
+                                    const EdgeInsets.symmetric(
+                                      horizontal:
+                                      10,
 
-                                  // TITLE
-                                  Text(
-                                    item[
-                                    'title'],
+                                      vertical:
+                                      5,
+                                    ),
 
-                                    maxLines: 1,
+                                    decoration:
+                                    BoxDecoration(
+                                      color:
+                                      primary.withOpacity(
+                                        0.12,
+                                      ),
 
-                                    overflow:
-                                    TextOverflow
-                                        .ellipsis,
+                                      borderRadius:
+                                      BorderRadius.circular(
+                                        8,
+                                      ),
+                                    ),
 
-                                    style:
-                                    const TextStyle(
-                                      fontSize:
-                                      17,
+                                    child:
+                                    Text(
+                                      'Available',
 
-                                      fontWeight:
-                                      FontWeight
-                                          .bold,
+                                      style:
+                                      TextStyle(
+                                        color:
+                                        primary,
+
+                                        fontSize:
+                                        11,
+
+                                        fontWeight:
+                                        FontWeight.bold,
+                                      ),
                                     ),
                                   ),
 
-                                  // LOCATION
-                                  Row(
-                                    children: [
+                                  const Icon(
+                                    Icons
+                                        .arrow_forward_ios,
 
-                                      const Icon(
-                                        Icons
-                                            .location_on_outlined,
+                                    size: 15,
 
-                                        size: 14,
-                                        color: Colors
-                                            .grey,
-                                      ),
-
-                                      const SizedBox(
-                                          width:
-                                          4),
-
-                                      Expanded(
-                                        child:
-                                        Text(
-                                          item[
-                                          'location'],
-
-                                          overflow:
-                                          TextOverflow
-                                              .ellipsis,
-
-                                          style:
-                                          const TextStyle(
-                                            fontSize:
-                                            12,
-
-                                            color:
-                                            Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  // QUANTITY
-                                  Row(
-                                    children: [
-
-                                      const Icon(
-                                        Icons
-                                            .shopping_bag_outlined,
-
-                                        size: 14,
-                                        color: Colors
-                                            .grey,
-                                      ),
-
-                                      const SizedBox(
-                                          width:
-                                          4),
-
-                                      Expanded(
-                                        child:
-                                        Text(
-                                          item[
-                                          'quantity'],
-
-                                          overflow:
-                                          TextOverflow
-                                              .ellipsis,
-
-                                          style:
-                                          const TextStyle(
-                                            fontSize:
-                                            12,
-
-                                            color:
-                                            Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  // DONOR
-                                  Row(
-                                    children: [
-
-                                      const Icon(
-                                        Icons
-                                            .person_outline,
-
-                                        size: 14,
-                                        color: Colors
-                                            .grey,
-                                      ),
-
-                                      const SizedBox(
-                                          width:
-                                          4),
-
-                                      Expanded(
-                                        child:
-                                        Text(
-                                          item[
-                                          'donorName'],
-
-                                          overflow:
-                                          TextOverflow
-                                              .ellipsis,
-
-                                          style:
-                                          const TextStyle(
-                                            fontSize:
-                                            12,
-
-                                            color:
-                                            Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                    color:
+                                    Colors.grey,
                                   ),
                                 ],
                               ),
-                            ),
-
-                            const SizedBox(
-                                width: 8),
-
-                            // STATUS
-                            Column(
-                              mainAxisAlignment:
-                              MainAxisAlignment
-                                  .spaceBetween,
-
-                              crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .end,
-
-                              children: [
-
-                                Container(
-                                  padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                    horizontal:
-                                    10,
-                                    vertical: 5,
-                                  ),
-
-                                  decoration:
-                                  BoxDecoration(
-                                    color: primary
-                                        .withValues(
-                                      alpha:
-                                      0.12,
-                                    ),
-
-                                    borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                        8),
-                                  ),
-
-                                  child: Text(
-                                    'Available',
-
-                                    style:
-                                    TextStyle(
-                                      color:
-                                      primary,
-
-                                      fontSize:
-                                      11,
-
-                                      fontWeight:
-                                      FontWeight
-                                          .bold,
-                                    ),
-                                  ),
-                                ),
-
-                                const Icon(
-                                  Icons
-                                      .arrow_forward_ios,
-
-                                  size: 15,
-                                  color:
-                                  Colors.grey,
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],

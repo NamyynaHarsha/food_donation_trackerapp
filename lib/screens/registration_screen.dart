@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 
 class RegistrationScreen extends StatefulWidget {
+
   const RegistrationScreen({super.key});
 
   @override
@@ -13,35 +14,201 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState
     extends State<RegistrationScreen> {
 
-  final emailController = TextEditingController();
+  final emailController =
+  TextEditingController();
 
-  final nameController = TextEditingController();
+  final nameController =
+  TextEditingController();
 
   final passwordController =
-      TextEditingController();
+  TextEditingController();
 
   final confirmPasswordController =
-      TextEditingController();
+  TextEditingController();
 
-  final phoneController = TextEditingController();
+  final phoneController =
+  TextEditingController();
 
   final addressController =
-      TextEditingController();
+  TextEditingController();
 
   bool isPasswordVisible = false;
 
   bool isConfirmPasswordVisible = false;
 
+  // =========================
+  // EMAIL VALIDATION
+  // =========================
+
+  bool isValidEmail(String email) {
+
+    return RegExp(
+      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+    ).hasMatch(email);
+  }
+
+  // =========================
+  // REGISTER USER
+  // =========================
+
+  Future<void> registerUser() async {
+
+    final email =
+    emailController.text.trim();
+
+    final name =
+    nameController.text.trim();
+
+    final password =
+    passwordController.text.trim();
+
+    final confirmPassword =
+    confirmPasswordController.text
+        .trim();
+
+    final phone =
+    phoneController.text.trim();
+
+    final address =
+    addressController.text.trim();
+
+    // EMPTY CHECK
+
+    if (email.isEmpty ||
+        name.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        phone.isEmpty ||
+        address.isEmpty) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content: Text(
+            "Please fill in all fields",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // EMAIL VALIDATION
+
+    if (!isValidEmail(email)) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content: Text(
+            "Please enter a valid email",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // PASSWORD LENGTH
+
+    if (password.length < 6) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content: Text(
+            "Password must be at least 6 characters",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // PASSWORD MATCH
+
+    if (password != confirmPassword) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content: Text(
+            "Passwords do not match",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // CHECK DUPLICATE EMAIL
+
+    final existingUser =
+    await DatabaseHelper.instance
+        .getUserByEmail(email);
+
+    if (existingUser != null) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        const SnackBar(
+          content: Text(
+            "Email already registered",
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // INSERT USER
+
+    await DatabaseHelper.instance
+        .registerUser({
+
+      'name': name,
+
+      'email': email,
+
+      'password': password,
+
+      'phone': phone,
+
+      'address': address,
+    });
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+
+      const SnackBar(
+        content: Text(
+          "Account created successfully",
+        ),
+      ),
+    );
+
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
 
     final primary =
-        Theme.of(context).colorScheme.primary;
+        Theme.of(context)
+            .colorScheme
+            .primary;
 
     return Scaffold(
 
       backgroundColor:
-          Theme.of(context).colorScheme.background,
+      const Color(0xFFF5F5F5),
 
       appBar: AppBar(
         title: const Text("Register"),
@@ -50,48 +217,44 @@ class _RegistrationScreenState
 
       body: SingleChildScrollView(
 
-        padding: const EdgeInsets.symmetric(
+        padding:
+        const EdgeInsets.symmetric(
           horizontal: 20,
-          vertical: 15,
+          vertical: 20,
         ),
 
         child: Column(
 
           crossAxisAlignment:
-              CrossAxisAlignment.start,
+          CrossAxisAlignment.start,
 
           children: [
 
             const Text(
+
               "Create Your Account",
 
               style: TextStyle(
-                fontSize: 28,
+                fontSize: 30,
                 fontWeight: FontWeight.bold,
               ),
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
             Text(
-              "Fill in your details to continue",
+
+              "Join the community and reduce food waste",
 
               style: TextStyle(
                 color: Colors.grey[600],
+                fontSize: 15,
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 30),
 
-            buildInput(
-              controller: emailController,
-              hint: "Email",
-              icon: Icons.email_outlined,
-            ),
-
-            const SizedBox(height: 18),
-
-            buildInput(
+            buildInputField(
               controller: nameController,
               hint: "Full Name",
               icon: Icons.person_outline,
@@ -99,45 +262,57 @@ class _RegistrationScreenState
 
             const SizedBox(height: 18),
 
-            buildPasswordInput(
-              controller: passwordController,
+            buildInputField(
+              controller: emailController,
+              hint: "Email Address",
+              icon: Icons.email_outlined,
+            ),
+
+            const SizedBox(height: 18),
+
+            buildPasswordField(
+              controller:
+              passwordController,
+
               hint: "Password",
 
-              isVisible: isPasswordVisible,
+              isVisible:
+              isPasswordVisible,
 
               toggle: () {
 
                 setState(() {
+
                   isPasswordVisible =
-                      !isPasswordVisible;
+                  !isPasswordVisible;
                 });
               },
             ),
 
             const SizedBox(height: 18),
 
-            buildPasswordInput(
+            buildPasswordField(
               controller:
-                  confirmPasswordController,
+              confirmPasswordController,
 
               hint: "Confirm Password",
 
               isVisible:
-                  isConfirmPasswordVisible,
+              isConfirmPasswordVisible,
 
               toggle: () {
 
                 setState(() {
 
                   isConfirmPasswordVisible =
-                      !isConfirmPasswordVisible;
+                  !isConfirmPasswordVisible;
                 });
               },
             ),
 
             const SizedBox(height: 18),
 
-            buildInput(
+            buildInputField(
               controller: phoneController,
               hint: "Phone Number",
               icon: Icons.phone_outlined,
@@ -145,13 +320,13 @@ class _RegistrationScreenState
 
             const SizedBox(height: 18),
 
-            buildInput(
+            buildInputField(
               controller: addressController,
               hint: "Address",
               icon: Icons.location_on_outlined,
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 35),
 
             SizedBox(
 
@@ -159,88 +334,25 @@ class _RegistrationScreenState
 
               child: ElevatedButton(
 
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
+                onPressed: registerUser,
+
+                style: ElevatedButton
+                    .styleFrom(
+
+                  backgroundColor:
+                  primary,
 
                   padding:
-                      const EdgeInsets.symmetric(
+                  const EdgeInsets.symmetric(
                     vertical: 18,
                   ),
 
-                  shape: RoundedRectangleBorder(
+                  shape:
+                  RoundedRectangleBorder(
                     borderRadius:
-                        BorderRadius.circular(20),
+                    BorderRadius.circular(18),
                   ),
-
-                  elevation: 4,
                 ),
-
-                onPressed: () async {
-
-                  if (emailController.text.isEmpty ||
-                      nameController.text.isEmpty ||
-                      passwordController.text.isEmpty ||
-                      confirmPasswordController
-                          .text
-                          .isEmpty) {
-
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-
-                      const SnackBar(
-                        content: Text(
-                          "Please fill in all required fields",
-                        ),
-                      ),
-                    );
-
-                    return;
-                  }
-
-                  if (passwordController.text !=
-                      confirmPasswordController.text) {
-
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-
-                      const SnackBar(
-                        content: Text(
-                          "Passwords do not match",
-                        ),
-                      ),
-                    );
-
-                    return;
-                  }
-
-                  await DatabaseHelper.instance
-                      .registerUser({
-
-                    'name': nameController.text,
-
-                    'email': emailController.text,
-
-                    'password':
-                        passwordController.text,
-
-                    'phone': phoneController.text,
-
-                    'address':
-                        addressController.text,
-                  });
-
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
-
-                    const SnackBar(
-                      content: Text(
-                        "Account Created Successfully",
-                      ),
-                    ),
-                  );
-
-                  Navigator.pop(context);
-                },
 
                 child: const Text(
 
@@ -248,14 +360,17 @@ class _RegistrationScreenState
 
                   style: TextStyle(
                     fontSize: 16,
+                    fontWeight:
+                    FontWeight.w600,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
             Center(
+
               child: GestureDetector(
 
                 onTap: () {
@@ -268,7 +383,8 @@ class _RegistrationScreenState
 
                   style: TextStyle(
                     color: primary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight:
+                    FontWeight.w600,
                   ),
                 ),
               ),
@@ -285,9 +401,10 @@ class _RegistrationScreenState
   // INPUT FIELD
   // =========================
 
-  Widget buildInput({
+  Widget buildInputField({
 
-    required TextEditingController controller,
+    required TextEditingController
+    controller,
 
     required String hint,
 
@@ -299,14 +416,14 @@ class _RegistrationScreenState
       decoration: BoxDecoration(
 
         borderRadius:
-            BorderRadius.circular(18),
+        BorderRadius.circular(18),
 
         boxShadow: [
 
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -319,10 +436,6 @@ class _RegistrationScreenState
 
           hintText: hint,
 
-          hintStyle: TextStyle(
-            color: Colors.grey[500],
-          ),
-
           prefixIcon: Icon(
             icon,
             color: Colors.grey[700],
@@ -332,17 +445,17 @@ class _RegistrationScreenState
 
           fillColor: Colors.white,
 
-          contentPadding:
-              const EdgeInsets.symmetric(
-            vertical: 18,
-          ),
-
           border: OutlineInputBorder(
 
             borderRadius:
-                BorderRadius.circular(18),
+            BorderRadius.circular(18),
 
             borderSide: BorderSide.none,
+          ),
+
+          contentPadding:
+          const EdgeInsets.symmetric(
+            vertical: 18,
           ),
         ),
       ),
@@ -353,9 +466,10 @@ class _RegistrationScreenState
   // PASSWORD FIELD
   // =========================
 
-  Widget buildPasswordInput({
+  Widget buildPasswordField({
 
-    required TextEditingController controller,
+    required TextEditingController
+    controller,
 
     required String hint,
 
@@ -369,14 +483,14 @@ class _RegistrationScreenState
       decoration: BoxDecoration(
 
         borderRadius:
-            BorderRadius.circular(18),
+        BorderRadius.circular(18),
 
         boxShadow: [
 
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -391,10 +505,6 @@ class _RegistrationScreenState
 
           hintText: hint,
 
-          hintStyle: TextStyle(
-            color: Colors.grey[500],
-          ),
-
           prefixIcon: Icon(
             Icons.lock_outline,
             color: Colors.grey[700],
@@ -408,7 +518,7 @@ class _RegistrationScreenState
                   ? Icons.visibility
                   : Icons.visibility_off,
 
-              color: Colors.grey[600],
+              color: Colors.grey[700],
             ),
 
             onPressed: toggle,
@@ -418,17 +528,17 @@ class _RegistrationScreenState
 
           fillColor: Colors.white,
 
-          contentPadding:
-              const EdgeInsets.symmetric(
-            vertical: 18,
-          ),
-
           border: OutlineInputBorder(
 
             borderRadius:
-                BorderRadius.circular(18),
+            BorderRadius.circular(18),
 
             borderSide: BorderSide.none,
+          ),
+
+          contentPadding:
+          const EdgeInsets.symmetric(
+            vertical: 18,
           ),
         ),
       ),

@@ -24,8 +24,11 @@ class _IncomingRequestsScreenState
 
   bool isLoading = true;
 
+  int pendingCount = 0;
+
   @override
   void initState() {
+
     super.initState();
 
     loadRequests();
@@ -37,18 +40,56 @@ class _IncomingRequestsScreenState
 
   Future<void> loadRequests() async {
 
-    final data = await DatabaseHelper
-        .instance
-        .getIncomingRequests(
-      widget.user['name'],
-    );
+    try {
 
-    setState(() {
+      final data =
+      await DatabaseHelper.instance
+          .getIncomingRequests(
+        widget.user['id'],
+      );
 
-      requests = data;
+      final pending =
+          data.where((request) {
 
-      isLoading = false;
-    });
+            return request['status'] ==
+                'Pending';
+
+          }).length;
+
+      if (!mounted) return;
+
+      setState(() {
+
+        requests = data;
+
+        pendingCount = pending;
+
+        isLoading = false;
+      });
+
+    } catch (e) {
+
+      debugPrint(
+        "LOAD REQUEST ERROR: $e",
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        SnackBar(
+          content: Text(
+            'Error loading requests: $e',
+          ),
+        ),
+      );
+    }
   }
 
   // =========================
@@ -56,20 +97,20 @@ class _IncomingRequestsScreenState
   // =========================
 
   Future<void> updateStatus(
-    Map<String, dynamic> request,
-    String status,
-  ) async {
 
-    // UPDATE REQUEST STATUS
+      Map<String, dynamic> request,
+      String status,
+
+      ) async {
 
     await DatabaseHelper.instance
         .updateRequestStatus(
+
       request['id'],
       status,
     );
 
-    // IF ACCEPTED
-    // REMOVE DONATION FROM PUBLIC
+    // ACCEPTED
 
     if (status == 'Accepted') {
 
@@ -82,25 +123,69 @@ class _IncomingRequestsScreenState
       );
     }
 
+    // REJECTED
+
+    if (status == 'Rejected') {
+
+      await DatabaseHelper.instance
+          .updateDonationStatus(
+
+        request['donationId'],
+
+        'Available',
+      );
+    }
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context)
         .showSnackBar(
 
       SnackBar(
         content:
-            Text('Request $status'),
+        Text('Request $status'),
       ),
     );
 
     loadRequests();
   }
 
+  // =========================
+  // STATUS COLOR
+  // =========================
+
+  Color getStatusColor(
+      String status,
+      ) {
+
+    switch (status) {
+
+      case 'Accepted':
+        return Colors.green;
+
+      case 'Rejected':
+        return Colors.red;
+
+      case 'Completed':
+        return Colors.blue;
+
+      default:
+        return Colors.orange;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
 
     final primary =
-        Theme.of(context).colorScheme.primary;
+        Theme.of(context)
+            .colorScheme
+            .primary;
 
     return Scaffold(
+
+      backgroundColor:
+      const Color(0xFFF5F5F5),
 
       appBar: AppBar(
 
@@ -108,348 +193,350 @@ class _IncomingRequestsScreenState
 
         elevation: 0,
 
-        title: const Text(
-          "Incoming Requests",
+        title: Row(
+          children: [
 
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+            const Text(
+
+              "Incoming Requests",
+
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight:
+                FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            // BADGE
+
+            if (pendingCount > 0)
+
+              Container(
+
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+
+                decoration: BoxDecoration(
+
+                  color: Colors.red,
+
+                  borderRadius:
+                  BorderRadius.circular(
+                    20,
+                  ),
+                ),
+
+                child: Text(
+
+                  pendingCount.toString(),
+
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight:
+                    FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
         ),
 
         iconTheme:
-            const IconThemeData(
+        const IconThemeData(
           color: Colors.white,
         ),
       ),
 
-      backgroundColor:
-          const Color(0xFFF5F5F5),
-
       body: isLoading
 
           ? const Center(
-              child:
-                  CircularProgressIndicator(),
-            )
+        child:
+        CircularProgressIndicator(),
+      )
 
           : requests.isEmpty
 
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
+          ? Center(
+        child: Column(
 
-                    children: [
+          mainAxisAlignment:
+          MainAxisAlignment
+              .center,
 
-                      Icon(
-                        Icons.notifications_none,
-                        size: 90,
-                        color: Colors.grey[400],
-                      ),
+          children: [
 
-                      const SizedBox(
-                        height: 20,
-                      ),
+            Icon(
+              Icons.notifications_none,
+              size: 90,
+              color:
+              Colors.grey[400],
+            ),
 
-                      Text(
-                        "No incoming requests yet",
+            const SizedBox(
+              height: 20,
+            ),
 
-                        style: TextStyle(
-                          fontSize: 18,
-                          color:
-                              Colors.grey[600],
+            Text(
+
+              "No incoming requests yet",
+
+              style: TextStyle(
+                fontSize: 18,
+                color:
+                Colors.grey[
+                600],
+              ),
+            ),
+          ],
+        ),
+      )
+
+          : Column(
+        children: [
+
+          // =========================
+          // TOP SUMMARY
+          // =========================
+
+          Container(
+
+            margin:
+            const EdgeInsets.all(
+              16,
+            ),
+
+            padding:
+            const EdgeInsets.all(
+              18,
+            ),
+
+            decoration:
+            BoxDecoration(
+
+              color: Colors.white,
+
+              borderRadius:
+              BorderRadius
+                  .circular(
+                18,
+              ),
+
+              boxShadow: [
+
+                BoxShadow(
+                  color: Colors.black
+                      .withValues(
+                    alpha: 0.04,
+                  ),
+
+                  blurRadius: 10,
+
+                  offset:
+                  const Offset(
+                    0,
+                    4,
+                  ),
+                ),
+              ],
+            ),
+
+            child: Row(
+
+              mainAxisAlignment:
+              MainAxisAlignment
+                  .spaceAround,
+
+              children: [
+
+                buildStat(
+                  value:
+                  requests.length
+                      .toString(),
+
+                  label:
+                  'Total',
+                ),
+
+                buildDivider(),
+
+                buildStat(
+                  value:
+                  pendingCount
+                      .toString(),
+
+                  label:
+                  'Pending',
+                ),
+
+                buildDivider(),
+
+                buildStat(
+                  value:
+                  requests
+                      .where(
+                        (r) =>
+                    r['status'] ==
+                        'Accepted',
+                  )
+                      .length
+                      .toString(),
+
+                  label:
+                  'Accepted',
+                ),
+              ],
+            ),
+          ),
+
+          // =========================
+          // REQUEST LIST
+          // =========================
+
+          Expanded(
+
+            child:
+            ListView.builder(
+
+              padding:
+              const EdgeInsets
+                  .fromLTRB(
+                16,
+                0,
+                16,
+                24,
+              ),
+
+              itemCount:
+              requests.length,
+
+              itemBuilder:
+                  (context, index) {
+
+                final request =
+                requests[index];
+
+                final status =
+                request[
+                'status'];
+
+                final statusColor =
+                getStatusColor(
+                  status,
+                );
+
+                return Container(
+
+                  margin:
+                  const EdgeInsets
+                      .only(
+                    bottom: 18,
+                  ),
+
+                  padding:
+                  const EdgeInsets
+                      .all(18),
+
+                  decoration:
+                  BoxDecoration(
+
+                    color:
+                    Colors.white,
+
+                    borderRadius:
+                    BorderRadius
+                        .circular(
+                      20,
+                    ),
+
+                    boxShadow: [
+
+                      BoxShadow(
+                        color: Colors
+                            .black
+                            .withValues(
+                          alpha:
+                          0.05,
+                        ),
+
+                        blurRadius:
+                        10,
+
+                        offset:
+                        const Offset(
+                          0,
+                          4,
                         ),
                       ),
                     ],
                   ),
-                )
 
-              : ListView.builder(
+                  child: Column(
 
-                  padding:
-                      const EdgeInsets.all(
-                    16,
-                  ),
+                    crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
 
-                  itemCount:
-                      requests.length,
+                    children: [
 
-                  itemBuilder:
-                      (context, index) {
+                      // FOOD TITLE
 
-                    final request =
-                        requests[index];
+                      Row(
 
-                    final status =
-                        request['status'];
-
-                    return Container(
-
-                      margin:
-                          const EdgeInsets.only(
-                        bottom: 18,
-                      ),
-
-                      padding:
-                          const EdgeInsets.all(
-                        18,
-                      ),
-
-                      decoration:
-                          BoxDecoration(
-
-                        color: Colors.white,
-
-                        borderRadius:
-                            BorderRadius
-                                .circular(20),
-
-                        boxShadow: [
-
-                          BoxShadow(
-                            color: Colors.black
-                                .withValues(
-                              alpha: 0.05,
-                            ),
-
-                            blurRadius: 10,
-
-                            offset:
-                                const Offset(
-                              0,
-                              4,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                        mainAxisAlignment:
+                        MainAxisAlignment
+                            .spaceBetween,
 
                         children: [
 
-                          // FOOD TITLE
+                          Expanded(
+                            child:
+                            Text(
 
-                          Text(
-                            request[
-                                'foodTitle'],
+                              request[
+                              'foodTitle'],
 
-                            style:
-                                const TextStyle(
-                              fontSize: 22,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
+                              style:
+                              const TextStyle(
+                                fontSize:
+                                22,
+
+                                fontWeight:
+                                FontWeight
+                                    .bold,
+                              ),
                             ),
                           ),
-
-                          const SizedBox(
-                            height: 18,
-                          ),
-
-                          // REQUESTER INFO
-
-                          Row(
-                            children: [
-
-                              CircleAvatar(
-                                radius: 28,
-
-                                backgroundColor:
-                                    primary
-                                        .withValues(
-                                  alpha: 0.15,
-                                ),
-
-                                child: Text(
-                                  request[
-                                          'requesterName'][0]
-                                      .toUpperCase(),
-
-                                  style:
-                                      TextStyle(
-                                    color:
-                                        primary,
-
-                                    fontSize:
-                                        24,
-
-                                    fontWeight:
-                                        FontWeight
-                                            .bold,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(
-                                width: 16,
-                              ),
-
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
-
-                                  children: [
-
-                                    Text(
-                                      request[
-                                          'requesterName'],
-
-                                      style:
-                                          const TextStyle(
-                                        fontSize:
-                                            18,
-
-                                        fontWeight:
-                                            FontWeight
-                                                .bold,
-                                      ),
-                                    ),
-
-                                    const SizedBox(
-                                      height:
-                                          6,
-                                    ),
-
-                                    Row(
-                                      children: [
-
-                                        Icon(
-                                          Icons.phone,
-
-                                          size: 16,
-
-                                          color:
-                                              primary,
-                                        ),
-
-                                        const SizedBox(
-                                          width:
-                                              8,
-                                        ),
-
-                                        Text(
-                                          request[
-                                              'requesterPhone'],
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(
-                                      height:
-                                          6,
-                                    ),
-
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment
-                                              .start,
-
-                                      children: [
-
-                                        Icon(
-                                          Icons
-                                              .location_on,
-
-                                          size:
-                                              16,
-
-                                          color:
-                                              primary,
-                                        ),
-
-                                        const SizedBox(
-                                          width:
-                                              8,
-                                        ),
-
-                                        Expanded(
-                                          child:
-                                              Text(
-                                            request[
-                                                'requesterAddress'],
-
-                                            style:
-                                                const TextStyle(
-                                              height:
-                                                  1.4,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(
-                            height: 22,
-                          ),
-
-                          // STATUS
 
                           Container(
 
                             padding:
-                                const EdgeInsets
-                                    .symmetric(
-                              horizontal: 14,
-                              vertical: 8,
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal:
+                              12,
+
+                              vertical:
+                              6,
                             ),
 
                             decoration:
-                                BoxDecoration(
+                            BoxDecoration(
 
                               color:
-                                  status ==
-                                          'Accepted'
-
-                                      ? Colors
-                                          .green
-                                          .withValues(
-                                          alpha:
-                                              0.12,
-                                        )
-
-                                      : status ==
-                                              'Rejected'
-
-                                          ? Colors
-                                              .red
-                                              .withValues(
-                                              alpha:
-                                                  0.12,
-                                            )
-
-                                          : status ==
-                                                  'Completed'
-
-                                              ? Colors
-                                                  .blue
-                                                  .withValues(
-                                                  alpha:
-                                                      0.12,
-                                                )
-
-                                              : Colors
-                                                  .orange
-                                                  .withValues(
-                                                  alpha:
-                                                      0.12,
-                                                ),
+                              statusColor
+                                  .withValues(
+                                alpha:
+                                0.12,
+                              ),
 
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                30,
+                              BorderRadius.circular(
+                                20,
                               ),
                             ),
 
@@ -458,157 +545,350 @@ class _IncomingRequestsScreenState
                               status,
 
                               style:
-                                  TextStyle(
-
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
+                              TextStyle(
 
                                 color:
-                                    status ==
-                                            'Accepted'
+                                statusColor,
 
-                                        ? Colors
-                                            .green
+                                fontWeight:
+                                FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
 
-                                        : status ==
-                                                'Rejected'
+                      const SizedBox(
+                        height: 18,
+                      ),
 
-                                            ? Colors
-                                                .red
+                      // USER INFO
 
-                                            : status ==
-                                                    'Completed'
+                      Row(
+                        children: [
 
-                                                ? Colors
-                                                    .blue
+                          CircleAvatar(
 
-                                                : Colors
-                                                    .orange,
+                            radius: 28,
+
+                            backgroundColor:
+                            primary
+                                .withValues(
+                              alpha:
+                              0.15,
+                            ),
+
+                            child: Text(
+
+                              request[
+                              'requesterName'][0]
+                                  .toUpperCase(),
+
+                              style:
+                              TextStyle(
+
+                                color:
+                                primary,
+
+                                fontSize:
+                                24,
+
+                                fontWeight:
+                                FontWeight.bold,
                               ),
                             ),
                           ),
 
                           const SizedBox(
-                            height: 24,
+                            width: 16,
                           ),
 
-                          // BUTTONS
+                          Expanded(
 
-                          if (status ==
-                              'Pending')
+                            child:
+                            Column(
 
-                            Row(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+
                               children: [
 
-                                Expanded(
-                                  child:
-                                      ElevatedButton(
+                                Text(
 
-                                    onPressed:
-                                        () {
+                                  request[
+                                  'requesterName'],
 
-                                      updateStatus(
-                                        request,
+                                  style:
+                                  const TextStyle(
+                                    fontSize:
+                                    18,
 
-                                        'Accepted',
-                                      );
-                                    },
-
-                                    style:
-                                        ElevatedButton.styleFrom(
-
-                                      backgroundColor:
-                                          Colors
-                                              .green,
-
-                                      foregroundColor:
-                                          Colors
-                                              .white,
-
-                                      minimumSize:
-                                          const Size(
-                                        double
-                                            .infinity,
-
-                                        50,
-                                      ),
-
-                                      shape:
-                                          RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                          14,
-                                        ),
-                                      ),
-                                    ),
-
-                                    child:
-                                        const Text(
-                                      "Accept",
-                                    ),
+                                    fontWeight:
+                                    FontWeight.bold,
                                   ),
                                 ),
 
                                 const SizedBox(
-                                  width: 12,
+                                  height:
+                                  6,
                                 ),
 
-                                Expanded(
-                                  child:
-                                      ElevatedButton(
+                                Row(
+                                  children: [
 
-                                    onPressed:
-                                        () {
+                                    Icon(
+                                      Icons
+                                          .phone,
 
-                                      updateStatus(
-                                        request,
+                                      size:
+                                      16,
 
-                                        'Rejected',
-                                      );
-                                    },
+                                      color:
+                                      primary,
+                                    ),
 
-                                    style:
-                                        ElevatedButton.styleFrom(
+                                    const SizedBox(
+                                      width:
+                                      8,
+                                    ),
 
-                                      backgroundColor:
-                                          Colors
-                                              .red,
-
-                                      foregroundColor:
-                                          Colors
-                                              .white,
-
-                                      minimumSize:
-                                          const Size(
-                                        double
-                                            .infinity,
-
-                                        50,
+                                    Expanded(
+                                      child:
+                                      Text(
+                                        request[
+                                        'requesterPhone'],
                                       ),
+                                    ),
+                                  ],
+                                ),
 
-                                      shape:
-                                          RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                          14,
+                                const SizedBox(
+                                  height:
+                                  6,
+                                ),
+
+                                Row(
+
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+
+                                  children: [
+
+                                    Icon(
+                                      Icons
+                                          .location_on,
+
+                                      size:
+                                      16,
+
+                                      color:
+                                      primary,
+                                    ),
+
+                                    const SizedBox(
+                                      width:
+                                      8,
+                                    ),
+
+                                    Expanded(
+                                      child:
+                                      Text(
+
+                                        request[
+                                        'requesterAddress'],
+
+                                        style:
+                                        const TextStyle(
+                                          height:
+                                          1.4,
                                         ),
                                       ),
                                     ),
-
-                                    child:
-                                        const Text(
-                                      "Reject",
-                                    ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
+                          ),
                         ],
                       ),
-                    );
-                  },
-                ),
+
+                      // BUTTONS
+
+                      if (status ==
+                          'Pending')
+
+                        Padding(
+
+                          padding:
+                          const EdgeInsets
+                              .only(
+                            top: 24,
+                          ),
+
+                          child: Row(
+                            children: [
+
+                              Expanded(
+
+                                child:
+                                ElevatedButton(
+
+                                  onPressed:
+                                      () {
+
+                                    updateStatus(
+
+                                      request,
+
+                                      'Accepted',
+                                    );
+                                  },
+
+                                  style:
+                                  ElevatedButton.styleFrom(
+
+                                    backgroundColor:
+                                    Colors.green,
+
+                                    foregroundColor:
+                                    Colors.white,
+
+                                    minimumSize:
+                                    const Size(
+                                      double.infinity,
+                                      50,
+                                    ),
+
+                                    shape:
+                                    RoundedRectangleBorder(
+                                      borderRadius:
+                                      BorderRadius.circular(
+                                        14,
+                                      ),
+                                    ),
+                                  ),
+
+                                  child:
+                                  const Text(
+                                    "Accept",
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(
+                                width: 12,
+                              ),
+
+                              Expanded(
+
+                                child:
+                                ElevatedButton(
+
+                                  onPressed:
+                                      () {
+
+                                    updateStatus(
+
+                                      request,
+
+                                      'Rejected',
+                                    );
+                                  },
+
+                                  style:
+                                  ElevatedButton.styleFrom(
+
+                                    backgroundColor:
+                                    Colors.red,
+
+                                    foregroundColor:
+                                    Colors.white,
+
+                                    minimumSize:
+                                    const Size(
+                                      double.infinity,
+                                      50,
+                                    ),
+
+                                    shape:
+                                    RoundedRectangleBorder(
+                                      borderRadius:
+                                      BorderRadius.circular(
+                                        14,
+                                      ),
+                                    ),
+                                  ),
+
+                                  child:
+                                  const Text(
+                                    "Reject",
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // STAT CARD
+  // =========================
+
+  Widget buildStat({
+
+    required String value,
+    required String label,
+  }) {
+
+    return Column(
+      children: [
+
+        Text(
+
+          value,
+
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight:
+            FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Text(
+
+          label,
+
+          style: TextStyle(
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================
+  // DIVIDER
+  // =========================
+
+  Widget buildDivider() {
+
+    return Container(
+
+      width: 1,
+      height: 40,
+
+      color: Colors.grey[300],
     );
   }
 }
